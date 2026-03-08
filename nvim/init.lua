@@ -25,7 +25,7 @@ if nvimpager or vim.opt.diff:get() then
     return
 end
 
--- vim.cmd.source("~/.config/nvim/vim/log.vim")
+vim.cmd.source("~/.config/nvim/vim/log.vim")
 
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -49,6 +49,7 @@ vim.opt.rtp:prepend(lazypath)
 -- This is also a good place to setup other settings (vim.opt)
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
+vim.g.cmd_sioyek = "abcd"
 
 -- Setup lazy.nvim
 --

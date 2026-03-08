@@ -11,7 +11,7 @@ local synctex_path_to_win_setup = function()
             -- print("here  compile success")
             local main_tex = vim.b.vimtex.compiler.file_info.target:gsub("tex$", "synctex")
             -- -i后需要加'', 不然会生成一些备份文件
-            sed_cmd = "sed -i'' 's#/mnt/c/#C:/#g' \"" .. main_tex .. '"'
+            local sed_cmd = "sed -i'' 's#/mnt/c/#C:/#g' \"" .. main_tex .. '"'
             vim.fn.system(sed_cmd)
         end,
     })
@@ -29,7 +29,7 @@ local inverse_search_callback = function()
         end,
         iterm2 = function()
             -- log("activate_neovim.iterm2()")
-            iterm_id = utils.iterm_id
+            local iterm_id = utils.iterm_id
             local iterm_tid = iterm_id[1]
             local iterm_wid = iterm_id[2]
             if iterm_wid then
@@ -131,7 +131,6 @@ local function compiling_notification()
 
     -- 显示初始通知
     local notif = notify.add(message .. " " .. spinner_frames[1])
-    -- log("new notif = " .. vim.inspect(notif))
 
     local i = 1
     local timer = vim.loop.new_timer()
@@ -189,6 +188,34 @@ local notification = function()
         group = vim.api.nvim_create_augroup("group_notifications", { clear = true }),
         callback = compiling_notification,
     })
+end
+
+local wsl_set_viewers = function(arg)
+    if not utils.in_wsl then
+        return
+    end
+    vim.g.vimtex_view_general_viewer = "python3"
+    vim.g.vimtex_view_general_options = "/mnt/c/Users/gaoqiang/OneDrive/programs/python/wsl_nvim_sumatrapdf.py"
+        .. " "
+        .. [[@tex @line @pdf]]
+end
+
+local macos_set_viewers = function(viewer)
+    if not utils.in_macos then
+        return
+    end
+    local viewers_setup = {
+        sioyek = function()
+            vim.g.vimtex_view_method = "sioyek"
+            vim.g.vimtex_view_sioyek_exe = "/Applications/sioyek.app/Contents/MacOS/sioyek"
+        end,
+        skim = function()
+            vim.g.vimtex_view_method = "skim"
+            vim.g.vimtex_view_skim_activate = 1
+        end,
+    }
+    viewers_setup[viewer]()
+    -- vim.g.vimtex_view_sioyek_options = ""
 end
 
 -- 启动nvim后自动编译
@@ -275,7 +302,9 @@ return {
     dependencies = {
         "nvim-mini/mini.notify",
     },
+    lazy = false,
     -- enabled = false,
+    -- init函数可以用来在加载插件之前设置一些全局变量
     init = function()
         vim.g.vimtex_env_toggle_math_map = {
             ["$"] = "equation",
@@ -338,19 +367,8 @@ return {
                     .. "/WorkSpace/settings/zhmakeindex/zhmakeindex.ist\"'",
             },
         }
-        if in_wsl then
-            vim.g.vimtex_view_general_viewer = "python3"
-            vim.g.vimtex_view_general_options = "/mnt/c/Users/gaoqiang/OneDrive/programs/python/wsl_nvim_sumatrapdf.py"
-                .. " "
-                .. [[@tex @line @pdf]]
-        else
-            -- vim.g.vimtex_view_general_viewer = "okular"
-            -- vim.g.vimtex_view_general_options = "--unique file:@pdf#src:@line@tex"
-            -- vim.g.vimtex_view_general_viewer = 'qpdfview'
-            vim.g.vimtex_view_method = "sioyek"
-            vim.g.vimtex_view_sioyek_exe = "/Applications/sioyek.app/Contents/MacOS/sioyek"
-            -- vim.g.vimtex_view_general_options = '--unique @pdf#src:@tex:@line:@col'
-        end
+        wsl_set_viewers()
+        macos_set_viewers("sioyek")
     end,
     config = function()
         keyset("n", "eq", "ts$", { silent = true, remap = true })

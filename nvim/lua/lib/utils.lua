@@ -1,4 +1,4 @@
-require("lib/string")
+require("lib.string")
 
 -- ========== 日志系统模块 ==========
 local log_module = {}
@@ -115,20 +115,75 @@ end
 -- 导出日志模块
 local log = log_module
 
-local function in_wsl()
-    local wsl_env = os.getenv("WSL_DISTRO_NAME")
-    if wsl_env then
-        return true
-    else
-        return false
+local function get_os()
+    -- 安全执行命令
+    local function safe_read(cmd)
+        local ok, result = pcall(function()
+            local f = io.popen(cmd)
+            if not f then
+                return nil
+            end
+            local output = f:read("*l")
+            f:close()
+            return output
+        end)
+        return ok and result or nil
     end
-    -- local uname = vim.loop.os_uname()
-    -- if uname.release:find("WSL") or uname.version:find("Microsoft") then
-    --     return true
-    -- else
-    --     return false
-    -- end
+
+    -- 检查 WSL
+    local function is_wsl()
+        local ok, content = pcall(function()
+            local f = io.open("/proc/version", "r")
+            if not f then
+                return nil
+            end
+            local data = f:read("*a")
+            f:close()
+            return data
+        end)
+        return ok and content and content:lower():find("microsoft") ~= nil
+    end
+
+    -- 主逻辑
+    local uname = safe_read("uname -s")
+    uname = uname and uname:lower() or ""
+
+    local result
+    if uname:find("darwin") then
+        result = "macos"
+    elseif uname:find("linux") then
+        result = is_wsl() and "wsl" or "linux"
+    elseif uname:find("windows") then
+        result = "windows"
+    else
+        -- fallback: 动态库扩展名推断
+        local ext = package.cpath:match("%p[\\/]?%p(%a+)")
+        if ext == "dll" then
+            result = "windows"
+        elseif ext == "so" then
+            result = "linux"
+        elseif ext == "dylib" then
+            result = "macos"
+        else
+            result = "unknown"
+        end
+    end
+
+    return result
 end
+
+local function in_wsl()
+    return get_os() == "wsl"
+end
+
+local function in_macos()
+    return get_os() == "macos"
+end
+
+local function in_linux()
+    return get_os() == "linux"
+end
+
 local paste_yanked_select = function(arg)
     if arg == "above" then
         vim.api.nvim_exec2(vim.api.nvim_replace_termcodes("normal O<Esc>P", true, false, true), { output = false })
@@ -666,63 +721,6 @@ local function shorten_path(path)
     return table.concat(parts, "/")
 end
 
-local function get_os()
-    -- 安全执行命令
-    local function safe_read(cmd)
-        local ok, result = pcall(function()
-            local f = io.popen(cmd)
-            if not f then
-                return nil
-            end
-            local output = f:read("*l")
-            f:close()
-            return output
-        end)
-        return ok and result or nil
-    end
-
-    -- 检查 WSL
-    local function is_wsl()
-        local ok, content = pcall(function()
-            local f = io.open("/proc/version", "r")
-            if not f then
-                return nil
-            end
-            local data = f:read("*a")
-            f:close()
-            return data
-        end)
-        return ok and content and content:lower():find("microsoft") ~= nil
-    end
-
-    -- 主逻辑
-    local uname = safe_read("uname -s")
-    uname = uname and uname:lower() or ""
-
-    local result
-    if uname:find("darwin") then
-        result = "MacOS"
-    elseif uname:find("linux") then
-        result = is_wsl() and "WSL" or "Linux"
-    elseif uname:find("windows") then
-        result = "Windows"
-    else
-        -- fallback: 动态库扩展名推断
-        local ext = package.cpath:match("%p[\\/]?%p(%a+)")
-        if ext == "dll" then
-            result = "Windows"
-        elseif ext == "so" then
-            result = "Linux"
-        elseif ext == "dylib" then
-            result = "MacOS"
-        else
-            result = "Unknown"
-        end
-    end
-
-    return result
-end
-
 local function strip_windows_paths(path)
     local parts = vim.split(path, ":", { plain = true })
     local keep = {}
@@ -1202,7 +1200,7 @@ local get_onedrive_root = function()
     end
 
     -- macOS: OneDrive 客户端有多个常见安装位置
-    if get_os() == "MacOS" then
+    if get_os() == "macos" then
         local candidates = {
             home_dir() .. "/Library/CloudStorage/OneDrive-Personal",
             home_dir() .. "/OneDrive - Personal",
@@ -1239,6 +1237,8 @@ return {
     file_exists = file_exists,
     shorten_path = shorten_path,
     in_wsl = in_wsl(),
+    in_macos = in_macos(),
+    in_linux = in_linux(),
     get_os = get_os,
     get_iterm_id = get_iterm_wid,
     get_wt_pid = get_wt_pid,
