@@ -1,8 +1,10 @@
 #----------------------------------------------------------------
 # 让 fish 加载 bash 的初始化脚本, 否则的话一些系统环境变量会有问题. 毕竟linux的环境变量基本上都是根据bash设置的
-bass source /etc/profile
-bass source ~/.profile
-bass source ~/.bashrc
+if contains $OS_TYPE linux wsl
+    bass source /etc/profile
+    bass source ~/.profile
+    bass source ~/.bashrc
+end
 #----------------------------------------------------------------
 
 if not status is-interactive
