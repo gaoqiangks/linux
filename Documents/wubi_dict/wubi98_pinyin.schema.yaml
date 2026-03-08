@@ -14,9 +14,10 @@ schema:
     - wanxiang
 
 switches:
-  - name: ascii_mode
-    reset: 0
-    states: [ 中文, 西文 ]
+  # macos自带的英文输入法是无法删除的， 所以我们使用rime的中文和系统的英文。 但是 windows的英文输入法是可以删除的， 所以windows下， 用rime的中文和英文输入法。
+  # - name: ascii_mode
+  #   reset: 0
+  #   states: [ 中文, 西文 ]
   - name: full_shape
     states: [ 半角, 全角 ]
   - name: ascii_punct
