@@ -18,7 +18,7 @@ import argparse
 import os
 from typing import List, Tuple, Dict
 
-def load_char_code_map(file_path):
+def load_char_code_map(file_path, silent=False):
     """加载单字编码表（一字一码）"""
     code_map = {}
     try:
@@ -30,7 +30,8 @@ def load_char_code_map(file_path):
                 
                 parts = line.split(maxsplit=1)
                 if len(parts) < 2:
-                    print(f"警告：单字码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
+                    if not silent:
+                        print(f"警告：单字码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
                     continue
                 
                 char = parts[0].strip()
@@ -40,7 +41,8 @@ def load_char_code_map(file_path):
         if not code_map:
             raise ValueError("单字码表文件加载后为空，请检查文件格式")
         
-        print(f"✅ 成功加载单字码表：{file_path}，共加载 {len(code_map)} 个单字")
+        if not silent:
+            print(f"✅ 成功加载单字码表：{file_path}，共加载 {len(code_map)} 个单字")
         return code_map
     
     except FileNotFoundError:
@@ -50,7 +52,7 @@ def load_char_code_map(file_path):
         print(f"❌ 加载单字码表失败：{str(e)}")
         exit(1)
 
-def load_word_code_dict(file_path):
+def load_word_code_dict(file_path, silent=False):
     """加载词语编码表（支持一词多码）"""
     word_dict = {}
     try:
@@ -62,7 +64,8 @@ def load_word_code_dict(file_path):
                 
                 parts = line.split(maxsplit=2)
                 if len(parts) < 2:
-                    print(f"警告：词语码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
+                    if not silent:
+                        print(f"警告：词语码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
                     continue
                 
                 word = parts[0].strip()
@@ -77,7 +80,8 @@ def load_word_code_dict(file_path):
             raise ValueError("词语码表文件加载后为空，请检查文件格式")
         
         total_codes = sum(len(v) for v in word_dict.values())
-        print(f"✅ 成功加载词语码表：{file_path}，共加载 {len(word_dict)} 个词语，{total_codes} 个编码")
+        if not silent:
+            print(f"✅ 成功加载词语码表：{file_path}，共加载 {len(word_dict)} 个词语，{total_codes} 个编码")
         return word_dict
     
     except FileNotFoundError:
@@ -185,7 +189,7 @@ def process_single_word(word, input_freq, char_code_map, word_dict, default_freq
     
     return output_lines, is_single_char, has_error
 
-def process_word_file(file_path, char_code_map, word_dict, default_freq, top_n, ignore_errors, max_word_len=None):
+def process_word_file(file_path, char_code_map, word_dict, default_freq, top_n, ignore_errors, max_word_len=None, silent=False):
     """批量处理词条文件（支持topN筛选+忽略错误）"""
     # 暂存结果：单字词条、多字词条（带词频）
     single_char_results = []
@@ -256,14 +260,14 @@ def process_word_file(file_path, char_code_map, word_dict, default_freq, top_n, 
     for line in multi_char_unique:
         print(line)
     
-    # 打印统计信息
-    print(f"\n📊 处理完成：")
-    print(f"   - 单字词条：{len(single_char_unique)} 条")
-    print(f"   - 多字词条：{len(multi_char_unique)} 条（原{len(multi_char_results)}条，按词频保留前{top_n if top_n else '全部'}条）")
-    if ignore_errors:
-        print(f"   - 忽略错误条目：{error_count} 条（使用-E参数隐藏）")
-    else:
-        print(f"   - 错误条目：{len(error_lines)} 条")
+    if not silent:
+        print(f"\n📊 处理完成：")
+        print(f"   - 单字词条：{len(single_char_unique)} 条")
+        print(f"   - 多字词条：{len(multi_char_unique)} 条（原{len(multi_char_results)}条，按词频保留前{top_n if top_n else '全部'}条）")
+        if ignore_errors:
+            print(f"   - 忽略错误条目：{error_count} 条（使用-E参数隐藏）")
+        else:
+            print(f"   - 错误条目：{len(error_lines)} 条")
 
 def interactive_query(char_code_map, word_dict, ignore_errors):
     """交互式查询模式（支持忽略错误）"""
@@ -330,22 +334,25 @@ def main():
                         help='可选：忽略无编码的词条，不打印错误信息（静默过滤错误）')
     parser.add_argument('-w', '--max-word-len', type=int,
                         help='可选：只生成不超过指定长度的词条（例如 -w 4 表示只处理4个字以内的词）')
+    parser.add_argument('-s', '--silent', action='store_true',
+                        help='可选：静默模式，只输出码表内容，不打印状态/统计信息')
     
     args = parser.parse_args()
     
     # 加载码表
-    char_code_map = load_char_code_map(args.map)
-    word_dict = load_word_code_dict(args.dict) if args.dict else None
+    char_code_map = load_char_code_map(args.map, silent=args.silent)
+    word_dict = load_word_code_dict(args.dict, silent=args.silent) if args.dict else None
     
     # 执行对应模式
     if args.file:
-        print(f"\n✅ 开始处理词条文件：{args.file}")
-        filter_info = f"保留所有单字词条 + 词频前{args.top if args.top else '全部'}的多字词条"
-        if args.ignore_errors:
-            filter_info += " + 忽略错误条目"
-        print(f"🔍 筛选规则：{filter_info}")
-        print("--------------------------------")
-        process_word_file(args.file, char_code_map, word_dict, args.default_freq, args.top, args.ignore_errors, args.max_word_len)
+        if not args.silent:
+            print(f"\n✅ 开始处理词条文件：{args.file}")
+            filter_info = f"保留所有单字词条 + 词频前{args.top if args.top else '全部'}的多字词条"
+            if args.ignore_errors:
+                filter_info += " + 忽略错误条目"
+            print(f"🔍 筛选规则：{filter_info}")
+            print("--------------------------------")
+        process_word_file(args.file, char_code_map, word_dict, args.default_freq, args.top, args.ignore_errors, args.max_word_len, silent=args.silent)
     else:
         interactive_query(char_code_map, word_dict, args.ignore_errors)
 
