@@ -1,0 +1,319 @@
+HYPERBOLIC ISOMETRIES VIA HOROSPHERES AND
+EQUIDISTANT SURFACES
+QIANG GAO
+Abstract. Let Hn be the n-dimensional hyperbolic space. In
+this paper, we prove the following results. (I) An injective map
+f : Hn 7→ Hn is an isometry if and only if it preserves horospheres.
+(II) An injective map f : Hn 7→ Hn is an isometry if and only if it
+preserves r-equidistant surfaces. We do not assume continuity in
+these results.
+AMS Mathematics Subject Classification (2010): 30C35; 51M09;
+Keywords: Möbius transformation, hyperbolic geometry, horosphere,
+equidistant surface.
+
+1. Introduction
+Let Hn be the n-dimensional hyperbolic space and Dn be the unit ball
+model of Hn . The isometries of Hn are the Möbius transformations that
+restrict to well defined maps on Hn . There have been many theorems on
+characterizations of isometries of Hn . The following results are known.
+Theorem 1.1 ([Jeffers2000Lost]). Suppose that f : Hn 7→ Hn is a
+bijection that preserves geodesics. Then f is an isometry.
+Theorem 1.2 ([Li09]). Suppose that f : Hn 7→ Hn is a bijection. Then
+f is an isometry if and only if f is triangle domain preserving.
+Theorem 1.3 ([Shi06]). Suppose that f : D2 7→ D2 is a continuous
+bijection. Then f is Möbius if and only if f preserves Lambert quadrilaterals in D2 .
+Theorem 1.4 ([LiWangFundamental2016]). Suppose that f : Dn 7→
+Dn is injective and maps any r-hyperplane into some r-hyperplane for
+some positive integer r < n. Then it is an isometry or a composition
+of an isometry and an affine transformation under the Klein model if
+and only if f is non-degenerate.
+
+For more such kind of rigidity results, one can see [BeardonMinda2002sphere],[chupin99],[
+and [Shi08].
+The author is partially supported by NSFC, No: 11771456.
+1
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+2
+
+Figure 1. Equidistant surfaces
+Now we recall some basic definitions in hyperbolic geometry. We
+use the upper half space model of Hn unless otherwise stated. For any
+point p ∈ Hn , we denote p by (x, y) ∈ Rn−1 × R+ .
+Definition 1.1. A geodesic plane is a vertical Euclidean plane or a
+Euclidean hemisphere that orthogonally intersects the x-plane.
+Definition 1.2. An equidistant surface is a surface equidistant from a
+geodesic plane. An r-equidistant surface is an equidistant surface that
+is at the distance r from a geodesic plane.
+Definition 1.3. An r-hypercycle is a curve that lies on a geodesic 2plane and that is r-equidistant from a geodesic. It is also called an
+r-equidistant curve.
+Definition 1.4. A horosphere Γ is either a horizontal plane or a Euclidean sphere in Hn that is tangent to the x-plane. The point Γ ∩ ∂Hn
+is called the center of the horosphere.
+Definition 1.5. Let f : Hn 7→ Hn . We way that f preserves horospheres if for any horosphere Γ, f (Γ) is a horosphere, and we say that
+f preserves r-equidistant surfaces if for any r-equidistant surface Γ,
+f (Γ) is an r-equidistant surface.
+It’s well-known that a Euclidean sphere or a Euclidean plane that
+intersects the x-plane with an angle θ is an r(θ)-equidistant surface
+where
+1 + cos θ
+r(θ) = ln(
+),
+(1.1)
+sin θ
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+3
+
+and each r-equidistant surface can obtained this way. See Figure (1).
+For any r > 0, let r∗ denote the unique number satisfying
+π
+θ(r) + θ(r∗ ) = .
+(1.2)
+2
+If Γ is a horosphere, then we denote the interior of Γ by Γ+ and the
+exterior of Γ by Γ− . If Γ is an r-equidistant surface, Γ divides the
+hyperbolic space Hn into two parts. One of the two parts contains the
+geodesic plane that shares the same boundary with Γ. We call this part
+the thick part of Γ and call the other part the thin part of Γ. Denote
+the thick part of Γ by Γ+ and the thin part by Γ− . Now we state our
+main results.
+Theorem 1.5. Let f : Hn 7→ Hn be an injective map. Then f is an
+isometry if and only if it preserves horospheres.
+Theorem 1.6. Let f : Hn 7→ Hn be an injective map. Then f is an
+isometry if and only there exists a constant r > 0 such that f preserves
+r-equidistant surfaces.
+2. Proof of Theorem (1.5)
+Lemma 2.1. Let Γ be a horosphere. Then f maps the interior of Γ
+into the interior of f (Γ) and maps the exterior of Γ onto the exterior
+of f (Γ).
+Proof. Let p ∈ Γ− . Let Γ′ be a horosphere that contains p and is
+tangent to Γ. Then f (Γ′ ) is tangent to f (Γ) at f (p) ∈ Hn . Therefore,
+f (p) ∈ f (Γ)− . To show that f maps the interior of Γ into the interior
+of f (Γ), we show that f |Γ− is surjective. Suppose that Γ = f (Γ) =
+{(x, y) ∈ Hn | y = 1}. For any point p ∈ Γ, let Γp denote the unique
+horosphere that is tangent to Γ at the point p. Then
+Γ− = ∪ Γp = ∪ f (Γp ) = f (Γ)−
+p∈Γ
+
+p∈Γ
+
+(2.1)
+
+Then f |Γ− : Γ− 7→ f (Γ)− is surjective. Since f is injective, f maps Γ+
+into f (Γ)+ .
+□
+Lemma 2.2. The map f is surjective.
+Proof. Let q ∈ Hn . Take two disjoint horospheres Γ1 and Γ2 such
+that Γ1 ∩ ∂Hn ̸= Γ2 ∩ ∂Hn . If q ∈ f (Γ1 ) ∪ f (Γ2 ), then we finish
+the proof. Otherwise, observe that f (Γ1 )+ ∩ f (Γ2 )+ = ∅. Therefore,
+q ∈ f (Γ1 )− or q ∈ f (Γ2 )− . In either case, the point q has a preimage
+since f |Γ− : Γ− 7→ f (Γ)− is surjective for any horosphere Γ.
+□
+Lemma 2.3. The map f extends to a homeomorphism between Hn .
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+4
+
+Figure 2
+Proof. We first show that f induces a homeomorphism between ∂Hn .
+Let p ∈ ∂Hn . Let Γ be a horosphere centered at p. Define f˜(p)
+to be the center of f (Γ). By Lemma (2.1), f˜(p) is independent of
+the choice of Γ and the map f˜ is injective. Now we show that f˜ is
+continuous. Let pn ∈ ∂Hn and pn → p. Suppose to the contrary that
+f˜(pn ) → q ̸= f˜(p). Assume that p = f˜(p) = ∞ and Γ = {(x, y) ∈
+Hn | y = 1}. Let {Γn } be the horosphere centered at pn and tangent
+to Γ. Up to a subsequence, assume that {Γn } are pairwise disjoint.
+Observe that f (Γn ) is a Euclidean sphere of unit diameter. It’s clear
+that f˜(pn ) doesn’t accummulate to a finite point, which leads to a
+contradiction. There, f˜ is continuous, and thus is a homeomorphism
+between ∂Hn . Let pn ∈ Hn and pn → p ∈ ∂Hn . For each pn , take
+a horosphere Γn centered at p and through pn . Up to a subsequence,
+suppose that Γn+1 ⊂ Γ+
+n . Now we show that f (Γn ) → f (p). Suppose
+to the contrary that f (Γn ) → Λ for some horosphere Λ centered at
+−
+f (p). Then f (∪Γ−
+n ) ⊂ Λ , which leads to a contradiction. Therefore,
+n
+
+f (pn ) → f (p).
+Now we show that f is continuous in Hn . Let p ∈ Hn and a, b ∈ ∂Hn .
+Without loss of generality, assume that a is at the origin, b = ∞ and
+p = (0, 0, · · · , 1). For each pt = (0, 0, · · · , t), let Γta be the horosphere
+centered at a and through pt . Let Γtb = {(x, y) ∈ Hn | y = t}. Then for
+any ε > 0, Γ1+ε
+and Γ1−ε
+bound a neighborhood U ε of p. See Figure
+a
+b
+(2). Let ε → 0. There holds
+∩ f (Uε ) = f ( ∩ Uε ) = f (p)
+
+ε→0
+
+ε→0
+
+(2.2)
+
+Therefore, f is continuous. By invariance of domain, f is a homeomorphism between Hn .
+□
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+5
+
+Proof of Theorem (1.5). Let a, b ∈ ∂Hn . Let γ be the geodesic connecting a and b. Then γ can be characterized as
+{p ∈ Hn |There exist two tangent horospheres Γa and Γb
+centered at a and b respectively such that p = Γa ∩ Γb(2.3)
+}
+Since f is a homeomorphism and horosphere-preserving, f is geodesicpreserving. By Theorem (1.1), f is an isometry.
+□
+3. Proof of Theorem (1.6)
+The proof of Theorem (1.6) is quite similar to the proof of Theorem
+(1.5).
+Lemma 3.1. Let Γ be an r-equidistant surface. Then f maps the thin
+part of Γ onto the thin part of f (Γ) and maps the thick part of Γ into
+the thick part of f (Γ).
+Proof. Let p ∈ Γ− . Then there exists an r-equidistant surface Γ′ containing p and tangent to Γ. Then f (Γ′ ) is tangent to Γ, and thus, f (p)
+lies in the thin part of f (Γ). Observe that for any point p ∈ Γ, there
+exists a unique r-equidistant surface lying in Γ− and tangent to Γ at
+p. Let Γp denote this r-equidistant surface. Then
+Γ− = ∪ Γp = ∪ f (Γp ) = f (Γ)−
+p∈Γ
+
+p∈Γ
+
+(3.1)
+
+Therefore f |Γ− is a surjective map from Γ− to f (Γ)− . Since f is injective, f maps Γ+ into f (Γ)+ .
+□
+Lemma 3.2. The map f is surjective.
+Proof. If there exists a point o ∈ ∂Hn such that there exists a sequence
+of r-equidistant surfaces {Γn } satisfying
++
+(1) o ∈ Γ+
+n+1 ⊂ Γn ,
+(2) Γn → o,
+(3) f (Γn ) → q for some q ∈ ∂Hn .
+Then by Lemma (3.1), f is surjective on Γ−
+n for each n, and thus,
+is a surjective map. Therefore, we have only to show that such a
+point exists. Suppose to the contrary. For any point p ∈ ∂Hn , take
++
+a sequence of r-equidistant surface {Γp,n } such that p ∈ Γ+
+p,n+1 ⊂ Γp,n
+and Γp,n → p. Suppose that condition (3) doesn’t hold. By Lemma
+(3.1), f (Γp,n+1 )+ ⊂ f (Γp,n )+ . Therefore, there exists an r-equidistant
+surface Λp such that f (Γp,n ) → Λp . For two points p ̸= q and n large
+−
++
+−
++
+−
+enough, there hold Γ+
+p,n ⊂ Γq,n and Γq,n ⊂ Γp,n . Then we have Λp ⊂ Λq
+−
++
++
+and Λ+
+q ⊂ Λp . Specially, Λp is disjoint from Λq . Consider the unit ball
+mode. Then each Λ+
+p is of finite positive Euclidean measure. However,
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+6
+
+this is impossible since there are uncountably many such r-equidistant
+surfaces and the sum of uncoutably many positive numbers must be
++∞. Thus, the lemma follows.
+□
+Lemma 3.3. The map f extends to a homeomorphism between Hn .
+Proof. We first show that f extends naturally to the boundary. Let
+p ∈ ∂Hn . Take a sequence of r-equidistant surfaces {Γn } such that
++
+p ∈ Γ+
+n+1 ⊂ Γn and Γn → p. The limit of f (Γn ) must be either a point
+or an r-equidistant surface. Suppose the latter case holds and denote
+this limiting surface by Λp . Then f maps f (Γn )− into Λ−
+p for each
+n
+−
+n, and thus f maps H into Λp , which contradicts to Lemma (3.2).
+Therefore, f (Γn ) → q for some point q ∈ ∂Hn . Define f (p) = q. It’s
+clear that q is independent of the choice of {Γn } and f |∂Hn is injective.
+Let p ∈ Hn . Take two r-equidistant surfaces Γ1 and Γ2 such that
++
+p ∈ Uε = Γ+
+1 ∩ Γ2 with diam(Uε ) < ε. Letting ε → 0, then we have
+∩ f (Uε ) = f ( ∩ Uε ) = f (p)
+
+ε→0
+
+ε→0
+
+(3.2)
+
+Therefore, f is continuous in Hn . Let p ∈ ∂Hn and Hn ∋ pk → p.
++
+Take a sequence of r-equidistant surfaces Γn such that p ∈ Γ+
+n+1 ⊂ Γn
+and Γn → p. Then for each n, there exists a constant K such that for
++
++
+any k > K, pk ⊂ Γ+
+n and thus f (pk ) ⊂ f (Γn ) . Since f (Γ)n → f (p),
+f (pk ) → f (p). Therefore, f is a homeomorphism between Hn .
+□
+Lemma 3.4. The map f is geodesic-preserving.
+Proof. We first show that f preserves r∗ -hypercycles. Let Γ be an
+r-equidistant surface. Without loss of generality, assume that Γ is
+a plane that forms an angle θ(r) with the x-plane. Let p ∈ Γ ∩ xplane. Let Γ′ ⊂ Γ+ be a plane parallel to Γ. Then there’s a unique
+r-equidistant surface Λ such that Λ contains p and is tangent to both
+Γ and Γ′ . See Figure (3). Let p′ = Λ ∩ Γ′ . Moving Γ′ to ∞ but
+still keep parallel to Γ, then the orbit of p′ is an r∗ -hypercycle, and
+each r∗ -hypercycle can be obtained this way. Consider the image of
+Γ and Γ′ . Suppose that f (Γ) ∩ f (Γ′ ) = ∞. Then f (Γ) and f (Γ′ ) are
+two disjoint planes. By Lemma (3.1), they must be parallel and f (Λ)
+is the r-equidistant surface lying between {f (Γ), f (Γ′ )} and tangent to
+them. Since f is a homeomorphism and preserves r-equidistant surface,
+f preserves r∗ -hypercycles. In addition, observe that, at the point p,
+there’s a unique r∗ -hypercycle connecting {p, ∞} and perpendicular to
+Γ, and it is exactly the orbit of p′ . Denote this hypercycle by γ. The
+above proof also shows that f (γ) is the unique r∗ -hypercycle connecting
+{f (p), ∞} and perpendicular to f (Γ).
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+7
+
+Figure 3. Characterization of r∗ -hypercycles
+
+Figure 4. Characterization of geodesics
+Suppose that f (∞) = ∞. Let q ∈ ∂Hn and Λ be an r-equidistant
+surface through q such that ∞ ∈ Λ− . Let L be the unique (n − 2)plane through q and tangent to Λ, namely, L = Tp Λ ∩ x-plane. The
+other (n−2)-plane parallel to L and tangent to Λ is denoted by L′ , and
+the tangent point is denoted by q ′ . Let α denote the geodesic through
+q ′ and ∞. Let β denote the r∗ -hypercycle through q and perpendicular
+to Λ. Then o = β ∩ Λ ∈ α. This can be seen from Figure (4). Observe
+that Λ is uniquely determined by L and L′ . Move L to ∞ and keep
+it parallel to L′ . The orbit of o is exactly the geodesic α. Since f (β)
+
+CHARACTERIZATIONS OF HYPERBOLIC ISOMETRIES
+
+8
+
+is perpendicular to f (Λ), the orbit of f (o) is the geodesic connecting
+f (q ′ ) and ∞, and thus, f preserves geodesics.
+□
+Proof of Theorem (1.6). This follows easily from Theorem (1.1) and
+Lemma (3.4).
+□
+Department of Mathematics, Sun Yat-Sen University, 510275, Guangzhou,
+P. R. China
+Email address: gaoqiangks@outlook.com
+
+

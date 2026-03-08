@@ -1,0 +1,352 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+98版五笔编码反查脚本（终极版）
+支持：
+1. -m 指定单字码表文件（用于按规则生成编码）
+2. -d 指定默认词语码表文件（支持一词多码，每行单独输出）
+3. 自动生成2/3/4字及多字词编码
+4. -f 指定词条文件批量处理，支持词频字段
+5. -n 指定无词频时的默认词频（可选）
+6. -t/--top N：保留词频前N的多字词条，所有单字词条全部保留
+7. -E/--ignore-errors：忽略无编码的词条，不打印错误信息
+8. -h 查看详细使用说明
+"""
+
+import argparse
+import os
+from typing import List, Tuple, Dict
+
+def load_char_code_map(file_path):
+    """加载单字编码表（一字一码）"""
+    code_map = {}
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                parts = line.split(maxsplit=1)
+                if len(parts) < 2:
+                    print(f"警告：单字码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
+                    continue
+                
+                char = parts[0].strip()
+                code = parts[1].strip().lower()
+                code_map[char] = code
+        
+        if not code_map:
+            raise ValueError("单字码表文件加载后为空，请检查文件格式")
+        
+        print(f"✅ 成功加载单字码表：{file_path}，共加载 {len(code_map)} 个单字")
+        return code_map
+    
+    except FileNotFoundError:
+        print(f"❌ 错误：未找到单字码表文件 {file_path}")
+        exit(1)
+    except Exception as e:
+        print(f"❌ 加载单字码表失败：{str(e)}")
+        exit(1)
+
+def load_word_code_dict(file_path):
+    """加载词语编码表（支持一词多码）"""
+    word_dict = {}
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                parts = line.split(maxsplit=2)
+                if len(parts) < 2:
+                    print(f"警告：词语码表{file_path}第{line_num}行格式错误，已跳过 -> {line}")
+                    continue
+                
+                word = parts[0].strip()
+                code = parts[1].strip().lower()
+                freq = parts[2].strip() if len(parts) >= 3 else None
+                
+                if word not in word_dict:
+                    word_dict[word] = []
+                word_dict[word].append((code, freq))
+        
+        if not word_dict:
+            raise ValueError("词语码表文件加载后为空，请检查文件格式")
+        
+        total_codes = sum(len(v) for v in word_dict.values())
+        print(f"✅ 成功加载词语码表：{file_path}，共加载 {len(word_dict)} 个词语，{total_codes} 个编码")
+        return word_dict
+    
+    except FileNotFoundError:
+        print(f"❌ 错误：未找到词语码表文件 {file_path}")
+        exit(1)
+    except Exception as e:
+        print(f"❌ 加载词语码表失败：{str(e)}")
+        exit(1)
+
+def generate_wubi_code(text, char_code_map):
+    """根据98版五笔规则生成编码"""
+    text = text.strip()
+    if not text:
+        return None, "输入不能为空"
+    
+    # 检查字符是否都在单字码表中
+    missing_chars = [char for char in text if char not in char_code_map]
+    if missing_chars:
+        return None, f"未找到以下字符的编码：{''.join(missing_chars)}"
+    
+    char_count = len(text)
+    codes = [char_code_map[char] for char in text]
+    result_code = ""
+    
+    # 按五笔规则生成编码
+    if char_count == 1:
+        result_code = codes[0]
+    elif char_count == 2:
+        result_code = codes[0][:2] + codes[1][:2]
+    elif char_count == 3:
+        result_code = codes[0][:1] + codes[1][:1] + codes[2][:2]
+    elif char_count == 4:
+        result_code = codes[0][:1] + codes[1][:1] + codes[2][:1] + codes[3][:1]
+    else:
+        # 多字词：1、2、3、末字首码
+        result_code = codes[0][:1] + codes[1][:1] + codes[2][:1] + codes[-1][:1]
+    
+    return result_code, None
+
+def process_single_word(word, input_freq, char_code_map, word_dict, default_freq):
+    """处理单个词条（支持一词多码输出），返回(词条行列表, 是否单字, 词频数值, 是否错误)"""
+    output_lines = []
+    is_single_char = len(word.strip()) == 1
+    freq_value = 0  # 默认词频为0
+    has_error = False
+    
+    # 解析词频数值（优先级：输入词频 > 码表词频 > 默认词频）
+    if input_freq is not None:
+        try:
+            freq_value = int(input_freq)
+        except ValueError:
+            freq_value = 0
+    elif default_freq is not None:
+        freq_value = default_freq
+    
+    # 优先匹配词语码表
+    if word_dict and word in word_dict:
+        for (code, dict_freq) in word_dict[word]:
+            output_parts = [word, code]
+            # 确定最终词频
+            final_freq = None
+            if input_freq is not None:
+                final_freq = input_freq
+                # 更新词频数值（用于排序）
+                try:
+                    freq_value = int(input_freq)
+                except ValueError:
+                    freq_value = 0
+            elif dict_freq is not None:
+                final_freq = dict_freq
+                try:
+                    freq_value = int(dict_freq)
+                except ValueError:
+                    freq_value = 0
+            elif default_freq is not None:
+                final_freq = str(default_freq)
+                freq_value = default_freq
+            
+            if final_freq:
+                output_parts.append(final_freq)
+            output_lines.append(('\t'.join(output_parts), freq_value))
+        return output_lines, is_single_char, has_error
+    
+    # 无匹配则生成编码
+    code, error = generate_wubi_code(word, char_code_map)
+    if error:
+        has_error = True
+        return [(f"错误 [{word}]：{error}", 0)], is_single_char, has_error
+    
+    output_parts = [word, code]
+    final_freq = None
+    if input_freq is not None:
+        final_freq = input_freq
+        try:
+            freq_value = int(input_freq)
+        except ValueError:
+            freq_value = 0
+    elif default_freq is not None:
+        final_freq = str(default_freq)
+        freq_value = default_freq
+    
+    if final_freq:
+        output_parts.append(final_freq)
+    output_lines.append(('\t'.join(output_parts), freq_value))
+    
+    return output_lines, is_single_char, has_error
+
+def process_word_file(file_path, char_code_map, word_dict, default_freq, top_n, ignore_errors, max_word_len=None):
+    """批量处理词条文件（支持topN筛选+忽略错误）"""
+    # 暂存结果：单字词条、多字词条（带词频）
+    single_char_results = []
+    multi_char_results = []
+    error_lines = []
+    error_count = 0
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                parts = line.split(maxsplit=1)
+                word = parts[0].strip()
+                input_freq = parts[1].strip() if len(parts) >= 2 else None
+                
+                # 过滤超长词条
+                if max_word_len is not None and len(word) > max_word_len:
+                    continue
+                
+                # 处理单个词条
+                output_lines, is_single_char, has_error = process_single_word(
+                    word, input_freq, char_code_map, word_dict, default_freq
+                )
+                
+                # 分类存储结果
+                for out_line, freq in output_lines:
+                    if has_error:
+                        error_count += 1
+                        if not ignore_errors:
+                            error_lines.append(f"第{line_num}行 {out_line}")
+                    else:
+                        if is_single_char:
+                            single_char_results.append(out_line)
+                        else:
+                            multi_char_results.append((out_line, freq))
+    
+    except FileNotFoundError:
+        print(f"❌ 错误：未找到词条文件 {file_path}")
+        exit(1)
+    except Exception as e:
+        print(f"❌ 处理词条文件失败：{str(e)}")
+        exit(1)
+    
+    # 1. 输出错误信息（仅当未指定-E时）
+    if not ignore_errors:
+        for error in error_lines:
+            print(error)
+    
+    # 2. 输出所有单字词条（去重）
+    single_char_unique = list(dict.fromkeys(single_char_results))  # 保持顺序去重
+    for line in single_char_unique:
+        print(line)
+    
+    # 3. 处理多字词条：按词频降序排序，取前top_n条
+    if top_n is not None and top_n > 0:
+        # 按词频降序、词条升序排序
+        multi_char_results.sort(key=lambda x: (-x[1], x[0]))
+        # 取前top_n条
+        multi_char_filtered = multi_char_results[:top_n]
+    else:
+        multi_char_filtered = multi_char_results
+    
+    # 输出多字词条（去重）
+    multi_char_unique = list(dict.fromkeys([line for line, freq in multi_char_filtered]))
+    for line in multi_char_unique:
+        print(line)
+    
+    # 打印统计信息
+    print(f"\n📊 处理完成：")
+    print(f"   - 单字词条：{len(single_char_unique)} 条")
+    print(f"   - 多字词条：{len(multi_char_unique)} 条（原{len(multi_char_results)}条，按词频保留前{top_n if top_n else '全部'}条）")
+    if ignore_errors:
+        print(f"   - 忽略错误条目：{error_count} 条（使用-E参数隐藏）")
+    else:
+        print(f"   - 错误条目：{len(error_lines)} 条")
+
+def interactive_query(char_code_map, word_dict, ignore_errors):
+    """交互式查询模式（支持忽略错误）"""
+    print("\n===== 98版五笔编码反查工具 =====")
+    print("支持单字/二字词/三字词/四字词/多字词查询（支持一词多码）")
+    print("输入 q 退出")
+    if ignore_errors:
+        print("⚠️ 已启用-E模式：忽略无编码的词条，不显示错误信息")
+    print("================================\n")
+    
+    while True:
+        user_input = input("请输入要查询的内容：")
+        if user_input.lower() == 'q':
+            print("感谢使用，再见！")
+            break
+        if not user_input.strip():
+            print("⚠️ 输入不能为空，请重新输入！")
+            continue
+        
+        output_lines, _, has_error = process_single_word(user_input, None, char_code_map, word_dict, None)
+        for line, _ in output_lines:
+            if has_error and ignore_errors:
+                continue  # 忽略错误输出
+            elif line.startswith("错误"):
+                print(f"❌ {line}\n")
+            else:
+                word, code = line.split('\t')[:2]
+                print(f"「{word}」的98版五笔编码：{code}\n")
+
+def main():
+    """主函数：参数解析 + 逻辑执行"""
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(
+        description='98版五笔编码反查工具（支持一词多码+批量处理+词频筛选+忽略错误）',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用示例：
+  1. 交互式查询（忽略错误）：
+     ./wubi_generate_code -m char_map.txt -d word_dict.txt -E
+     
+  2. 批量处理（保留前1000多字词+忽略错误）：
+     ./wubi_generate_code -m char_map.txt -d word_dict.txt -f words.txt -n 99 -t 1000 -E
+     
+  3. 完整参数示例：
+     ./wubi_generate_code -m char_map.txt -d word_dict.txt -f words.txt -n 99 -t 1000 -E
+     
+文件格式说明：
+  单字码表（-m）：每行「单字 编码」，示例：编 xy
+  词语码表（-d）：每行「词语 编码 [词频]」，示例：工 a 100
+  词条文件（-f）：每行「词语 [词频]」，示例：编程 200
+        """
+    )
+    parser.add_argument('-m', '--map', required=True, 
+                        help='必填：单字编码表路径（用于生成多字词编码）')
+    parser.add_argument('-d', '--dict', 
+                        help='可选：词语编码表路径（支持一词多码）')
+    parser.add_argument('-f', '--file', 
+                        help='可选：词条文件路径，不指定则进入交互模式')
+    parser.add_argument('-n', '--default-freq', type=int, 
+                        help='可选：无词频时的默认词频（整数）')
+    parser.add_argument('-t', '--top', type=int, 
+                        help='可选：保留词频前N的多字词条（所有单字词条全部保留）')
+    parser.add_argument('-E', '--ignore-errors', action='store_true',
+                        help='可选：忽略无编码的词条，不打印错误信息（静默过滤错误）')
+    parser.add_argument('-w', '--max-word-len', type=int,
+                        help='可选：只生成不超过指定长度的词条（例如 -w 4 表示只处理4个字以内的词）')
+    
+    args = parser.parse_args()
+    
+    # 加载码表
+    char_code_map = load_char_code_map(args.map)
+    word_dict = load_word_code_dict(args.dict) if args.dict else None
+    
+    # 执行对应模式
+    if args.file:
+        print(f"\n✅ 开始处理词条文件：{args.file}")
+        filter_info = f"保留所有单字词条 + 词频前{args.top if args.top else '全部'}的多字词条"
+        if args.ignore_errors:
+            filter_info += " + 忽略错误条目"
+        print(f"🔍 筛选规则：{filter_info}")
+        print("--------------------------------")
+        process_word_file(args.file, char_code_map, word_dict, args.default_freq, args.top, args.ignore_errors, args.max_word_len)
+    else:
+        interactive_query(char_code_map, word_dict, args.ignore_errors)
+
+if __name__ == "__main__":
+    main()

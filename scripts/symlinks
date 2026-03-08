@@ -1,0 +1,45 @@
+#!/bin/bash
+# 功能：创建指定符号链接，自动检查，存在则备份为.bak、自动创建不存在的目录，安全无删文件风险
+
+# 定义要创建的符号链接列表 【格式：源文件/目录  目标符号链接】
+link_list=(
+    "$HOME/linux/nvim"               "$HOME/.config/nvim"
+    "$HOME/linux/nvim"               "$HOME/.config/nvimpager"
+    "$HOME/linux/fish"               "$HOME/.config/fish"
+    "$HOME/linux/atuin"              "$HOME/.config/atuin"
+    "$HOME/linux/starship.toml"      "$HOME/.config/starship.toml"
+    "/mnt/c/Users/gaoqiang/Onedrive" "$HOME/OneDrive"
+    # "$HOME/linux/fish_history"  "/home/gaoqiang/.local/share/fish/fish_history"
+)
+
+# 循环遍历链接列表，批量处理
+for ((i=0; i<${#link_list[@]}; i+=2)); do
+    src=${link_list[$i]}       # 源文件/目录路径
+    dest=${link_list[$i+1]}    # 符号链接路径
+    dest_bak="${dest}.bak"     # 备份文件路径：目标路径 + .bak后缀
+
+    # ========== 步骤1：自动创建符号链接所在的目录（递归创建，不存在则建，存在不报错） ==========
+    dest_dir=$(dirname "$dest")
+    if [ ! -d "$dest_dir" ]; then
+        mkdir -p "$dest_dir"
+        echo "✅ 目录不存在，已创建：$dest_dir"
+    fi
+
+    # ========== 步骤2：核心修改 - 存在则重命名为.bak备份，不再删除 ==========
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        # 如果已经有.bak备份文件，先删除旧备份，避免重命名失败
+        if [ -e "$dest_bak" ]; then
+            rm -rf "$dest_bak"
+            echo "⚠️  发现旧备份文件，已清理：$dest_bak"
+        fi
+        # 重命名原文件/链接 为 .bak 后缀
+        mv "$dest" "$dest_bak"
+        echo "⚠️  目标路径已存在，已备份为：$dest_bak"
+    fi
+
+    # ========== 步骤3：创建符号链接 ==========
+    ln -s "$src" "$dest"
+    echo "✅ 符号链接创建成功：$src → $dest"
+done
+
+echo -e "\n🎉 所有符号链接处理完成，全程安全备份无文件删除！"

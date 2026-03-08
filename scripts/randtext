@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+WORDS_FILE="$SCRIPT_DIR/words.txt"
+
+# 默认值
+WIDTH=72
+LINES=10
+
+# 帮助信息函数
+usage() {
+    echo "用法: $0 [-w width] [-n lines] [-h]"
+    echo "选项:"
+    echo "  -w    每行字符数 (默认: 72)"
+    echo "  -n    总行数 (默认: 10)"
+    echo "  -h    显示此帮助信息"
+    exit 0
+}
+
+# 处理参数
+# 注意：h 后面没有冒号，因为它不需要跟参数值
+while getopts "w:n:h" opt; do
+  case $opt in
+    w) WIDTH=$OPTARG ;;
+    n) LINES=$OPTARG ;;
+    h) usage ;;
+    \?) echo "无效选项，请运行 $0 -h 查看说明" >&2; exit 1 ;;
+  esac
+done
+
+# 检查文件是否存在
+if [[ ! -f "$WORDS_FILE" ]]; then
+    echo "错误: 找不到文件 $WORDS_FILE"
+    exit 1
+fi
+
+# 执行逻辑
+shuf -n $((LINES * 20)) "$WORDS_FILE" | fmt -w "$WIDTH" | head -n "$LINES"

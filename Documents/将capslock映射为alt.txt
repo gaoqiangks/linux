@@ -1,0 +1,9 @@
+安装keyd, 在/etc/keyd/default.conf中添下如下内容
+[ids]
+*
+
+[main]
+capslock = layer(mylayer)
+
+[mylayer:A]
+

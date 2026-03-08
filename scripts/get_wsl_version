@@ -1,0 +1,6 @@
+#!/bin/bash
+wsl.exe -l -v |
+iconv -f utf16 |
+egrep "\b${WSL_DISTRO_NAME}\s+Running" |
+tr -d '\r' |
+sed 's/.*\([[:digit:]]\)[[:space:]]*/\1/'

@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+
+# 1. 对应fish脚本：set copy_to_system_clipboard ""
+copy_to_system_clipboard = []
+
+# 2. 调用外部get_os脚本，获取系统类型（替代原内置函数）
+
+def get_os_from_external_script():
+    try:
+        # 获取当前脚本的绝对目录（定位到get_os的同级目录）
+        current_script_dir = os.path.dirname(os.path.abspath(__file__))
+        # 拼接同级目录下的get_os脚本路径（按需调整：若为py脚本，改为"get_os.py"）
+        get_os_script_path = os.path.join(current_script_dir, "get_os")
+        
+        # 执行同级目录下的get_os脚本，获取系统类型
+        os_type = subprocess.check_output(
+            [get_os_script_path],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        return os_type
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"Error: failed to call 'get_os' (same directory): {str(e)}")
+        return "unknown"
+# 获取系统类型（调用外部get_os脚本）
+os_type = get_os_from_external_script()
+
+# 3. 对应fish的switch $os分支，设置剪贴板命令
+import shutil
+
+if os_type == "macos":
+    copy_to_system_clipboard = ["pbcopy"]
+elif os_type in ("linux", "wsl"):
+    # 参考 neovim clipboard.vim 的检测顺序:
+    # 1. Wayland (含 WSLg): $WAYLAND_DISPLAY + wl-copy
+    # 2. X11: xsel / xclip
+    # 3. WSL fallback: win32yank.exe
+    if os.environ.get("WAYLAND_DISPLAY") and shutil.which("wl-copy"):
+        copy_to_system_clipboard = ["wl-copy"]
+    elif shutil.which("xsel"):
+        copy_to_system_clipboard = ["xsel", "--clipboard", "--input"]
+    elif shutil.which("xclip"):
+        copy_to_system_clipboard = ["xclip", "-selection", "clipboard"]
+    elif shutil.which("win32yank.exe"):
+        copy_to_system_clipboard = ["win32yank.exe", "-i"]
+    else:
+        copy_to_system_clipboard = []
+else:
+    copy_to_system_clipboard = []
+
+# 4. 对应fish的copyfullpath函数
+def copyfullpath(args=None):
+    fullpath = ""
+    argv = args if args is not None else []
+
+    # 判断参数数量是否为0（对应fish: test (count $argv) -eq 0）
+    if len(argv) == 0:
+        # 对应fish: realpath . 2>/dev/null
+        try:
+            fullpath = os.path.realpath(".")
+        except (OSError, FileNotFoundError):
+            fullpath = ""
+    else:
+        # 对应fish: realpath $argv[1]（Python索引0对应fish索引1）
+        try:
+            fullpath = os.path.realpath(argv[0])
+        except (OSError, FileNotFoundError):
+            fullpath = ""
+
+    # 对应fish: test -z "$fullpath"
+    if not fullpath:
+        print("Error: file not found or invalid path.")
+        return 1
+
+    # 检查剪贴板命令是否有效（对应fish: $copy_to_system_clipboard）
+    if not copy_to_system_clipboard:
+        print("Error: clipboard command not set (unsupported OS environment or failed to get OS type).")
+        return 1
+
+    try:
+        # 对应fish: echo -n $fullpath | $copy_to_system_clipboard
+        # 管道传递无换行符路径，实现剪贴板复制
+        proc = subprocess.Popen(
+            copy_to_system_clipboard,
+            stdin=subprocess.PIPE,
+            text=True  # 以字符串格式传递数据，避免字节流问题
+        )
+        # 写入fullpath（无额外换行符，等价于fish的echo -n）
+        proc.communicate(input=fullpath)
+
+        # 检查剪贴板命令执行状态
+        if proc.returncode != 0:
+            cmd_str = " ".join(copy_to_system_clipboard)
+            print(f"Error: clipboard command '{cmd_str}' failed.")
+            return 1
+    except Exception as e:
+        cmd_str = " ".join(copy_to_system_clipboard)
+        print(f"Error: failed to execute '{cmd_str}': {str(e)}")
+        return 1
+
+    # 对应fish: echo "✅ Copied: $fullpath"
+    print(f"✅ Copied: {fullpath}")
+    return 0
+
+# 脚本独立运行入口（模拟终端调用，接收命令行参数）
+if __name__ == "__main__":
+    # sys.argv[1:] 排除脚本自身路径，对应fish的$argv
+    copyfullpath(sys.argv[1:])

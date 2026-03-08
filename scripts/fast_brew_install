@@ -1,0 +1,220 @@
+#!/bin/bash
+
+# 帮助信息（完善版）
+usage() {
+    echo "==================== 多源批量安装脚本（Ubuntu）===================="
+    echo "功能：支持 apt-get + Homebrew 批量安装，自动跳过已安装包，适配 Ubuntu"
+    echo "规则："
+    echo "  - 普通行：软件包名 → 用 Homebrew 安装"
+    echo "  - 以apt:开头的行：apt: pkg1 pkg2 → 用 apt-get 安装"
+    echo "------------------------------------------------------------"
+    echo "用法: "
+    echo "  1. 命令行指定 Homebrew 包: $0 pkg1 pkg2 pkg3 ..."
+    echo "  2. 从文件读取包列表: $0 -f/--file 文件名"
+    echo "------------------------------------------------------------"
+    echo "选项: "
+    echo "  -f, --file   指定包含软件包列表的文件（支持apt:前缀行）"
+    echo "               文件支持注释行（以#开头）和空行"
+    echo "  -h, --help   显示此帮助信息并退出"
+    echo "------------------------------------------------------------"
+    echo "示例: "
+    echo "  $0 git node docker            # 仅用 Homebrew 安装指定包"
+    echo "  $0 -f pkgs.txt                # 从文件读取，自动区分 apt/Homebrew"
+    echo "  $0 -h                         # 显示帮助信息"
+    echo "pkgs.txt 示例内容："
+    echo "  # 注释行"
+    echo "  apt: wget curl htop           # 用 apt-get 安装"
+    echo "  git node docker               # 用 Homebrew 安装"
+    echo "============================================================"
+    exit 1
+}
+
+# 初始化包列表
+apt_packages=()          #已安装包 apt-get 待安装包
+brew_packages=()         #已安装包 Homebrew 待安装包
+apt_already_installed=() # apt 已安装包
+brew_already_installed=()   # brew 已安装包
+apt_to_install=()        # apt 待安装包（去重+过滤已安装）
+brew_to_install=()       # brew 待安装包（去重+过滤已安装）
+
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -f|--file)
+            if [[ -z "$2" ]]; then
+                echo "错误: -f 参数后必须指定文件名！"
+                usage
+            fi
+            if [[ ! -f "$2" || ! -r "$2" ]]; then
+                echo "错误: 文件 '$2' 不存在或不可读取！"
+                exit 1
+            fi
+            # 读取文件，区分 apt: 行和普通行
+            while IFS=' ' read -r -a line_pkgs; do
+                # 过滤空行和注释行
+                if [[ "${line_pkgs[0]}" == "" || "${line_pkgs[0]}" =~ ^# ]]; then
+                    continue
+                fi
+                # 处理 apt: 开头的行
+                if [[ "${line_pkgs[0]}" == "apt:" ]]; then
+                    # 移除 apt: 前缀，剩余的是 apt 包名
+                    apt_pkgs=("${line_pkgs[@]:1}")
+                    apt_packages+=("${apt_pkgs[@]}")
+                else
+                    # 普通行加入 brew 包列表
+                    brew_packages+=("${line_pkgs[@]}")
+                fi
+            done < "$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            # 命令行参数默认加入 brew 包列表
+            brew_packages+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# ==============================================
+# 第一步：处理 apt-get 安装逻辑（Ubuntu 专属）
+# ==============================================
+# 修复：数组长度判断的闭合括号
+if [[ ${#apt_packages[@]} -gt 0 ]]; then
+    echo "🔍 正在检查 apt 软件包安装状态..."
+    # 去重（避免重复检查/安装）
+    apt_packages=($(echo "${apt_packages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    
+    for pkg in "${apt_packages[@]}"; do
+        # dpkg -s 检查包是否已安装，屏蔽错误输出
+        if dpkg -s "$pkg" 2>/dev/null | grep -q "Status: install ok installed"; then
+            apt_already_installed+=("$pkg")
+        else
+            apt_to_install+=("$pkg")
+        fi
+    done
+
+    # 打印 apt 检查结果
+    if [[ ${#apt_already_installed[@]} -gt 0 ]]; then
+        echo "✅ apt 已安装的软件包: ${apt_already_installed[*]}"
+    fi
+    if [[ ${#apt_to_install[@]} -gt 0 ]]; then
+        echo "📋 apt 待安装的软件包: ${apt_to_install[*]}"
+        # 更新 apt 源缓存并安装
+        echo "🔄 更新 apt 源缓存..."
+        sudo apt-get update -y
+        echo "🚀 开始安装 apt 软件包..."
+        sudo apt-get install -y "${apt_to_install[@]}"
+        
+        # 检查 apt 安装结果
+        if [ $? -eq 0 ]; then
+            echo "✅ 所有 apt 软件包安装成功！"
+        else
+            echo "❌ 部分 apt 软件包安装失败，请检查日志！"
+            # 不退出，继续执行 brew 安装逻辑
+        fi
+    else
+        echo "📌 没有需要安装的 apt 软件包！"
+    fi
+fi
+
+# ==============================================
+# 第二步：检查是否有需要处理的包（修复空参数问题）
+# ==============================================
+if [[ ${#apt_packages[@]} -eq 0 && ${#brew_packages[@]} -eq 0 ]]; then
+    echo "错误: 未指定任何要安装的软件包！"
+    echo "提示：请通过 -f 指定包列表文件，或直接在命令行指定 Homebrew 包名"
+    usage
+fi
+
+# ==============================================
+# 第三步：处理 Homebrew 安装逻辑
+# ==============================================
+if [[ ${#brew_packages[@]} -gt 0 ]]; then
+    echo "🔍 正在检查 Homebrew 软件包安装状态..."
+    # 去重
+    brew_packages=($(echo "${brew_packages[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    
+    # 检查 brew 包安装状态
+    for pkg in "${brew_packages[@]}"; do
+        # 先检查 brew 是否安装，避免未安装时执行 brew list 报错
+        if command -v brew 2>&1 >/dev/null; then
+            if brew list --formula "$pkg" 2>/dev/null || brew list --cask "$pkg" 2>/dev/null; then
+                brew_already_installed+=("$pkg")
+            else
+                brew_to_install+=("$pkg")
+            fi
+        else
+            # brew 未安装，所有包都标记为待安装
+            brew_to_install+=("$pkg")
+        fi
+    done
+
+    # 打印 brew 检查结果
+    if [[ ${#brew_already_installed[@]} -gt 0 ]]; then
+        echo "✅ Homebrew 已安装的软件包: ${brew_already_installed[*]}"
+    fi
+    if [[ ${#brew_to_install[@]} -eq 0 ]]; then
+        echo "📌 没有需要安装的 Homebrew 软件包！"
+        # 修复：如果有 apt 包处理过，不直接退出
+        if [[ ${#apt_packages[@]} -gt 0 ]]; then
+            exit 0
+        else
+            usage
+        fi
+    fi
+    echo "📋 Homebrew 待安装的软件包: ${brew_to_install[*]}"
+
+    # 检查 Homebrew 是否已安装
+    if ! command -v brew 2>&1 >/dev/null; then
+        echo "正在安装 Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+    # 配置中科大 Homebrew 镜像源（环境变量方式）
+    echo "🔄 配置中科大 Homebrew 镜像源..."
+    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
+    export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
+    export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+
+    # 更新 brew 源缓存
+    echo "🔄 更新 Homebrew 源缓存..."
+    brew update
+
+    # 环境变量优化
+    export HOMEBREW_NO_AUTO_UPDATE=1
+    export HOMEBREW_INSTALL_RETRY=3
+
+    # 并行预下载 brew 包
+    echo "-----------------------------------"
+    echo "Step 1: 并行下载 Homebrew 软件包..."
+    printf "%s\n" "${brew_to_install[@]}" | xargs -n 1 -P 5 brew fetch --retry
+
+    # 批量安装 brew 包
+    echo "-----------------------------------"
+    echo "Step 2: 安装 Homebrew 软件包..."
+    brew install "${brew_to_install[@]}"
+
+    # 检查 brew 安装结果
+    if [ $? -eq 0 ]; then
+        echo "✅ 所有 Homebrew 软件包安装成功！"
+    else
+        echo "❌ 部分 Homebrew 软件包安装失败，请检查日志！"
+        exit 1
+    fi
+fi
+
+# 最终总结
+echo "============================================================"
+echo "📊 安装总结: "
+if [[ ${#apt_packages[@]} -gt 0 ]]; then
+    echo "  - apt: 已跳过 ${#apt_already_installed[@]} 个已安装包，安装 ${#apt_to_install[@]} 个新包"
+fi
+if [[ ${#brew_packages[@]} -gt 0 ]]; then
+    echo "  - Homebrew: 已跳过 ${#brew_already_installed[@]} 个已安装包，安装 ${#brew_to_install[@]} 个新包"
+fi
+echo "✅ 所有安装流程执行完成！"

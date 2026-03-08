@@ -1,0 +1,285 @@
+#!/bin/bash
+
+# install_manpages.sh - WSL Debian 手册页安装脚本
+# 修复语法错误，提高兼容性
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # 无颜色
+
+# 全局变量
+FAILED_PACKAGES=()
+FAILED_COUNT=0
+FAILED_FILE="/tmp/failed_packages_$(date +%s).txt"
+
+# 简单的日志函数
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# 检查root权限
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "此脚本需要使用sudo运行: sudo ./install_manpages.sh"
+        exit 1
+    fi
+}
+
+# 安全的包安装函数
+install_package() {
+    local pkg="$1"
+    
+    log_info "安装: $pkg"
+    
+    # 尝试安装
+    if apt-get install -y "$pkg" > /dev/null 2>&1; then
+        log_success "成功: $pkg"
+        return 0
+    else
+        log_warning "失败: $pkg"
+        echo "$pkg" >> "$FAILED_FILE"
+        FAILED_PACKAGES+=("$pkg")
+        ((FAILED_COUNT++))
+        return 1
+    fi
+}
+
+# 更新系统
+update_system() {
+    log_info "更新包列表..."
+    apt-get update
+    log_success "更新完成"
+}
+
+# 安装核心手册页
+install_core_man() {
+    log_info "安装核心手册页..."
+    
+    # 基础包列表
+    local core_packages=(
+        man-db
+        manpages
+        manpages-dev
+    )
+    
+    # 尝试可能不存在的包
+    local optional_packages=(
+        manpages-posix
+        manpages-posix-dev
+        glibc-doc-manpages
+    )
+    
+    # 安装基础包
+    for pkg in "${core_packages[@]}"; do
+        install_package "$pkg"
+    done
+    
+    # 尝试安装可选包
+    for pkg in "${optional_packages[@]}"; do
+        if apt-cache show "$pkg" > /dev/null 2>&1; then
+            install_package "$pkg"
+        else
+            log_warning "跳过: $pkg (包不存在)"
+        fi
+    done
+    
+    log_success "核心手册页安装完成"
+}
+
+# 安装语言手册页
+install_lang_man() {
+    log_info "安装语言手册页..."
+    
+    # 查找所有语言手册页包
+    local lang_packages=$(apt-cache search --names-only '^manpages-[a-z][a-z]$' 2>/dev/null | cut -d' ' -f1)
+    
+    if [[ -z "$lang_packages" ]]; then
+        log_warning "未找到语言手册页包"
+        return
+    fi
+    
+    # 安装找到的语言包
+    for pkg in $lang_packages; do
+        install_package "$pkg"
+    done
+    
+    log_success "语言手册页安装完成"
+}
+
+# 安装常用工具文档
+install_tool_docs() {
+    log_info "安装工具文档..."
+    
+    # 常用工具文档列表
+    local tool_packages=(
+        coreutils-doc
+        bash-doc
+        less-doc
+        vim-doc
+        nano-doc
+        tar-doc
+        gzip-doc
+        bzip2-doc
+        xz-utils-doc
+        systemd-doc
+        procps-doc
+        util-linux-doc
+        dpkg-doc
+        apt-doc
+        grep-doc
+        sed-doc
+        awk-doc
+        findutils-doc
+        diffutils-doc
+    )
+    
+    for pkg in "${tool_packages[@]}"; do
+        if apt-cache show "$pkg" > /dev/null 2>&1; then
+            install_package "$pkg"
+        fi
+    done
+    
+    log_success "工具文档安装完成"
+}
+
+# 查找并安装所有文档包
+install_all_docs() {
+    log_info "查找所有文档包..."
+    
+    # 获取所有文档包
+    local all_docs=$(apt-cache search --names-only '-doc$' 2>/dev/null | cut -d' ' -f1)
+    local total=$(echo "$all_docs" | wc -w)
+    
+    if [[ $total -eq 0 ]]; then
+        log_warning "未找到文档包"
+        return
+    fi
+    
+    log_warning "找到 $total 个文档包"
+    echo "这可能需要大量磁盘空间(2-5GB)和较长时间。"
+    echo -n "是否继续? (y/N): "
+    read -r response
+    
+    if [[ ! $response =~ ^[Yy]$ ]]; then
+        log_info "跳过文档包安装"
+        return
+    fi
+    
+    log_info "开始批量安装文档包..."
+    local count=0
+    
+    for pkg in $all_docs; do
+        ((count++))
+        echo -ne "进度: $count/$total\r"
+        
+        # 检查包是否存在
+        if apt-cache show "$pkg" > /dev/null 2>&1; then
+            install_package "$pkg"
+        fi
+    done
+    
+    echo ""
+    log_success "文档包安装完成"
+}
+
+# 更新手册数据库
+update_man_db() {
+    log_info "更新手册数据库..."
+    mandb
+    log_success "手册数据库更新完成"
+}
+
+# 显示报告
+show_report() {
+    local total_installed=$(dpkg -l | grep '^ii' | wc -l)
+    local total_docs=$(dpkg -l | grep '^ii.*-doc' | wc -l)
+    local total_man=$(dpkg -l | grep '^ii.*man' | wc -l)
+    
+    echo ""
+    echo "========================================"
+    echo "           安装完成报告"
+    echo "========================================"
+    echo "系统总包数: $total_installed"
+    echo "手册页相关包: $total_man"
+    echo "文档包: $total_docs"
+    echo "安装失败: $FAILED_COUNT 个包"
+    
+    if [[ $FAILED_COUNT -gt 0 ]]; then
+        echo ""
+        echo "失败的包:"
+        cat "$FAILED_FILE" 2>/dev/null || echo "无失败记录"
+    fi
+    
+    echo ""
+    echo "手册页目录:"
+    du -sh /usr/share/man /usr/share/doc 2>/dev/null || echo "目录不存在"
+    
+    echo ""
+    echo "测试手册页:"
+    for cmd in ls grep find bash apt; do
+        if man -w "$cmd" > /dev/null 2>&1; then
+            echo "  ✓ $cmd: 可用"
+        else
+            echo "  ✗ $cmd: 不可用"
+        fi
+    done
+    
+    # 清理临时文件
+    rm -f "$FAILED_FILE" 2>/dev/null
+}
+
+# 主函数
+main() {
+    echo "========================================"
+    echo " WSL Debian 手册页安装脚本"
+    echo "========================================"
+    
+    # 检查权限
+    check_root
+    
+    # 更新系统
+    update_system
+    
+    # 安装核心手册页
+    install_core_man
+    
+    # 安装语言手册页
+    install_lang_man
+    
+    # 安装工具文档
+    install_tool_docs
+    
+    # 询问是否安装所有文档包
+    echo ""
+    echo "========================================"
+    install_all_docs
+    
+    # 更新数据库
+    update_man_db
+    
+    # 显示报告
+    show_report
+    
+    echo ""
+    echo "========================================"
+    log_success "安装完成!"
+    echo "========================================"
+}
+
+# 运行主函数
+main "$@"

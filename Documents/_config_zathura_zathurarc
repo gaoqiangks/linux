@@ -1,0 +1,36 @@
+set synctex true
+# set synctex-editor-command "vim --remote-silent +%{line} %{input}"
+# set synctex-editor-command "nvim --headless -c \"VimtexInverseSearch %l '%f'\""
+# set synctex-editor-command "nvim --headless -c \"VimtexInverseSearch %{line}:%{column} '%{input}'\""
+# set default-bg "#FFFFFF"
+# set default-fg "#000000"
+set window-title-page true
+# set statusbar-bg "#FFFFFF"
+set window-title-home-tilde true
+#set page-padding 10
+set page-cache-size 100
+#set incremental-search true
+# set completion-bg "#FFFFFF"
+# set completion-fg "#000000"
+# set inputbar-fg "#000000"
+# set inputbar-bg "#FFFFFF"
+set adjust-open "width"
+set highlight-transparency 0.0
+#current search result
+set highlight-active-color "#0000FF"
+set highlight-color "#00FF00"
+#set highlight-color "#FFFFFF"
+map q quit
+map t toggle_fullscreen
+map <C-i> zoom in
+map <C-o> zoom out
+#启动时窗口的大小
+set window-height 3000
+set window-width 3000
+#页面显示适合宽度
+map w adjust_window width
+#鼠标滚动
+set scroll-step 100
+set adjust-open width
+set guioptions ""
+map Button1 adjust_window width

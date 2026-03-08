@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import time
+import argparse
+from collections import Counter
+from multiprocessing import Pool, cpu_count, Value, Process
+import fast_jieba as jieba
+
+# 全局共享进度（由主进程创建，通过 initializer 继承）
+g_progress = None
+g_chunk_done = None
+
+
+def is_chinese_word(w):
+    """只保留 1~4 字的纯中文词语"""
+    return 1 <= len(w) <= 4 and all('\u4e00' <= ch <= '\u9fff' for ch in w)
+
+
+def utf8_safe_slice(data):
+    """确保 chunk 不切断 UTF‑8 字符"""
+    end = len(data)
+    while end > 0 and (data[end - 1] & 0b11000000) == 0b10000000:
+        end -= 1
+    return data[:end], end
+
+
+def worker_init(progress, chunk_done):
+    """Pool 初始化：把共享进度绑定到全局变量"""
+    global g_progress, g_chunk_done
+    g_progress = progress
+    g_chunk_done = chunk_done
+
+
+def process_chunk(args):
+    """子进程：处理一个 chunk，返回 Counter"""
+    global g_progress, g_chunk_done
+    file_path, start, size = args
+
+    with open(file_path, "rb") as f:
+        f.seek(start)
+        raw = f.read(size)
+
+    raw, valid_len = utf8_safe_slice(raw)
+    text = raw.decode("utf-8", errors="ignore")
+
+    local = Counter()
+    for w in jieba.cut(text):
+        if is_chinese_word(w):
+            local[w] += 1
+
+    # 更新字节进度
+    with g_progress.get_lock():
+        g_progress.value += valid_len
+
+    # 更新 chunk 进度
+    with g_chunk_done.get_lock():
+        g_chunk_done.value += 1
+
+    return local
+
+
+def print_progress(total_size, total_chunks, progress, chunk_done):
+    """进度条：99% 容错退出 + 10 秒无进度退出 + 增强信息"""
+    start = time.time()
+    last_done = 0
+    last_change_time = time.time()
+    idle_timeout = 10  # 10 秒无进度就退出
+
+    while True:
+        with progress.get_lock():
+            done = progress.value
+        with chunk_done.get_lock():
+            chunks = chunk_done.value
+
+        percent = done / total_size * 100
+        elapsed = time.time() - start
+        speed_bytes = done / elapsed if elapsed > 0 else 0
+        speed_chunks = chunks / elapsed if elapsed > 0 else 0
+        remain = (total_size - done) / speed_bytes if speed_bytes > 0 else 0
+
+        print(
+            f"[进度] {done/1024/1024:.2f}MB / {total_size/1024/1024:.2f}MB "
+            f"({percent:.2f}%) | {chunks}/{total_chunks} chunks | "
+            f"速度: {speed_bytes/1024/1024:.2f}MB/s, {speed_chunks:.2f} chunks/s | "
+            f"剩余: {remain:.1f}s"
+        )
+
+        # 条件 1：达到 99%
+        if done >= total_size * 0.99:
+            print("达到 99%，自动退出进度监控")
+            break
+
+        # 条件 2：超过 idle_timeout 秒无进度
+        if done > last_done:
+            last_done = done
+            last_change_time = time.time()
+        else:
+            if time.time() - last_change_time >= idle_timeout:
+                print(f"{idle_timeout} 秒无进度，自动退出进度监控")
+                break
+
+        time.sleep(2)
+
+
+def walk_files(folder):
+    for root, dirs, files in os.walk(folder):
+        for name in files:
+            yield os.path.join(root, name)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="纯内存 Counter + 多进程 + fast_jieba（增强进度版）")
+    parser.add_argument("-i", "--input", required=True)
+    parser.add_argument("-o", "--output", required=True)
+    parser.add_argument("-t", "--threads", type=int, default=cpu_count())
+    parser.add_argument("-c", "--chunk", type=int, default=2)
+    parser.add_argument("-n", type=int, default=None, help="输出前 N 个词（默认输出全部）")
+    args = parser.parse_args()
+
+    folder = args.input
+    chunk_size = args.chunk * 1024 * 1024
+
+    # 收集文件
+    files = list(walk_files(folder))
+    if not files:
+        print("目录为空")
+        return
+
+    total_size = sum(os.path.getsize(f) for f in files)
+    print(f"发现 {len(files)} 个文件，总大小 {total_size/1024/1024:.2f} MB")
+
+    # 共享进度计数
+    progress = Value("Q", 0)
+    chunk_done = Value("Q", 0)
+
+    # 构造任务
+    tasks = []
+    for file_path in files:
+        size = os.path.getsize(file_path)
+        offset = 0
+        while offset < size:
+            block = min(chunk_size, size - offset)
+            tasks.append((file_path, offset, block))
+            offset += block
+
+    total_chunks = len(tasks)
+    print(f"总共 {total_chunks} 个 chunk")
+
+    # 启动进度进程
+    progress_proc = Process(
+        target=print_progress,
+        args=(total_size, total_chunks, progress, chunk_done)
+    )
+    progress_proc.start()
+
+    # 多进程处理
+    with Pool(args.threads, initializer=worker_init, initargs=(progress, chunk_done)) as pool:
+        counters = pool.map(process_chunk, tasks)
+
+    print("进度监控结束，正在等待 worker 完成剩余任务…")
+    progress_proc.join()
+
+    # 合并 Counter
+    total = Counter()
+    for c in counters:
+        total.update(c)
+
+    # 输出前 N 个词
+    if args.n is None:
+        items = total.most_common()
+    else:
+        items = total.most_common(args.n)
+
+    with open(args.output, "w", encoding="utf-8") as f:
+        for w, freq in items:
+            f.write(f"{w}\t{freq}\n")
+
+    print("完成！")
+
+
+if __name__ == "__main__":
+    main()
+

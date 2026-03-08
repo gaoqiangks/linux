@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+重码词处理脚本（带调试进度+修复语法错误）
+功能：
+1. 默认：统计"一词多码"重码（一个词对应多个编码）
+2. -c：统计"一码多词"重码（一个编码对应多个词）
+3. -i：原地修改文件，将指定类型的重码词条按词频降序移到开头：
+   - 仅-i：处理一词多码
+   - -i -c：处理一码多词
+使用方式：
+  统计一词多码：./count_duplicate_codes.py -f a.txt
+  统计一码多词：./count_duplicate_codes.py -f a.txt -c
+  原地修改（一词多码）：./count_duplicate_codes.py -f a.txt -i
+  原地修改（一码多词）：./count_duplicate_codes.py -f a.txt -i -c
+"""
+
+import argparse
+import os
+import shutil
+import sys
+from collections import defaultdict
+
+def print_progress(phase, progress, total, msg=""):
+    """打印进度信息（带百分比）"""
+    if total > 0:
+        percent = (progress / total) * 100
+        sys.stdout.write(f"\r🔧 [{phase}] 进度：{progress}/{total} ({percent:.1f}%) {msg}")
+    else:
+        sys.stdout.write(f"\r🔧 [{phase}] 进度：{progress} {msg}")
+    sys.stdout.flush()
+
+def parse_code_table(file_path, keep_original_lines=True):
+    """
+    解析码表文件，返回双重复码数据及原始行信息（带进度）
+    """
+    # 初始化数据结构
+    word_code_freq = defaultdict(dict)
+    code_word_freq = defaultdict(dict)
+    max_word_freq = defaultdict(int)
+    max_code_freq = defaultdict(int)
+    
+    comment_lines = []
+    all_entry_lines = []
+    line_word_map = {}
+    line_code_map = {}
+    line_freq_map = {}
+    
+    # 检查文件
+    if not os.path.exists(file_path):
+        print(f"\n❌ 错误：文件 {file_path} 不存在！")
+        exit(1)
+    
+    # 先统计文件总行数（用于进度显示）
+    print("\n📏 正在统计文件总行数...")
+    total_lines = 0
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for _ in f:
+            total_lines += 1
+    print(f"📄 文件总行数：{total_lines}")
+    
+    # 读取并解析文件（带进度）
+    processed_lines = 0
+    print("\n📝 开始解析文件内容...")
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            processed_lines += 1
+            if processed_lines % 1000 == 0:  # 每1000行打印一次进度
+                print_progress("文件解析", processed_lines, total_lines)
+            
+            # 修复：补充缺失的右括号
+            raw_line = line.rstrip('\n')
+            stripped_line = raw_line.strip()
+            
+            # 处理注释/空行
+            if not stripped_line or stripped_line.startswith('#'):
+                comment_lines.append(raw_line)
+                continue
+            
+            parts = stripped_line.split(maxsplit=2)
+            if len(parts) < 2:
+                all_entry_lines.append(raw_line)
+                continue
+            
+            # 提取核心字段
+            word = parts[0].strip()
+            code = parts[1].strip().lower()
+            freq_str = parts[2].strip() if len(parts) >= 3 else "0"
+            
+            # 解析词频（优化：仅解析一次）
+            try:
+                freq = int(freq_str)
+            except ValueError:
+                freq = 0
+            
+            # 存储行映射（优化：避免重复添加）
+            if raw_line not in line_word_map:
+                all_entry_lines.append(raw_line)
+                line_word_map[raw_line] = word
+                line_code_map[raw_line] = code
+                line_freq_map[raw_line] = freq
+            
+            # 更新映射关系（优化：减少判断）
+            word_code_freq[word][code] = (freq, raw_line)
+            code_word_freq[code][word] = (freq, raw_line)
+            
+            # 更新最高词频（优化：一次判断）
+            max_word_freq[word] = max(max_word_freq[word], freq)
+            max_code_freq[code] = max(max_code_freq[code], freq)
+    
+    # 完成解析进度打印
+    print_progress("文件解析", total_lines, total_lines, "✅ 解析完成")
+    print("\n")
+    
+    # 去重所有词条行（优化：使用集合快速去重）
+    all_entry_lines = list(dict.fromkeys(all_entry_lines))
+    print(f"🔍 去重后词条行总数：{len(all_entry_lines)}")
+    
+    # 筛选重码行（优化：使用集合快速查找）
+    print("🔧 开始筛选重码行...")
+    # 一词多码的词集合
+    word_dup_set = {word for word, codes in word_code_freq.items() if len(codes) >= 2}
+    word_dup_lines = [line for line in all_entry_lines if line_word_map.get(line) in word_dup_set]
+    print(f"   - 一词多码行数量：{len(word_dup_lines)}")
+    
+    # 一码多词的编码集合
+    code_dup_set = {code for code, words in code_word_freq.items() if len(words) >= 2}
+    code_dup_lines = [line for line in all_entry_lines if line_code_map.get(line) in code_dup_set]
+    print(f"   - 一码多词行数量：{len(code_dup_lines)}")
+    print("✅ 重码行筛选完成\n")
+    
+    # 整理返回数据
+    all_lines_info = {
+        'comment': comment_lines,
+        'all_entry': all_entry_lines,
+        'word_dup': word_dup_lines,
+        'code_dup': code_dup_lines,
+        'line_word': line_word_map,
+        'line_code': line_code_map,
+        'line_freq': line_freq_map,
+        'total_lines': total_lines
+    }
+    
+    if keep_original_lines:
+        return word_code_freq, code_word_freq, max_word_freq, max_code_freq, all_lines_info
+    else:
+        return word_code_freq, code_word_freq, max_word_freq, max_code_freq
+
+def inplace_modify_file(file_path, is_code_dup=False):
+    """
+    原地修改文件：将指定类型的重码词条移到开头（带进度）
+    """
+    print(f"🚀 开始原地修改文件：{file_path}")
+    print(f"🔧 修改类型：{'一码多词' if is_code_dup else '一词多码'}")
+    
+    # 1. 解析文件获取所有行信息
+    _, _, _, _, lines_info = parse_code_table(file_path, keep_original_lines=True)
+    
+    # 2. 选择要处理的重码行
+    if is_code_dup:
+        dup_lines = lines_info['code_dup']
+        key_map = lines_info['line_code']
+        freq_map = lines_info['line_freq']
+        dup_type = "编码"
+    else:
+        dup_lines = lines_info['word_dup']
+        key_map = lines_info['line_word']
+        freq_map = lines_info['line_freq']
+        dup_type = "词条"
+    
+    print(f"🔧 待排序重码行数量：{len(dup_lines)}")
+    
+    # 3. 按最高词频降序排序重码行（带进度）
+    print("🔧 开始排序重码行...")
+    # 构建key-最高词频映射（优化：一次遍历）
+    key_max_freq = defaultdict(int)
+    for idx, line in enumerate(dup_lines):
+        if idx % 1000 == 0:
+            print_progress("排序-构建词频", idx, len(dup_lines))
+        key = key_map.get(line, "")
+        freq = freq_map.get(line, 0)
+        key_max_freq[key] = max(key_max_freq[key], freq)
+    print_progress("排序-构建词频", len(dup_lines), len(dup_lines), "✅ 词频映射完成")
+    print()
+    
+    # 按key分组（优化：一次遍历）
+    key_groups = defaultdict(list)
+    for idx, line in enumerate(dup_lines):
+        if idx % 1000 == 0:
+            print_progress("排序-分组", idx, len(dup_lines))
+        key = key_map.get(line, "")
+        key_groups[key].append(line)
+    print_progress("排序-分组", len(dup_lines), len(dup_lines), f"✅ 分组完成（共{len(key_groups)}个{dup_type}组）")
+    print()
+    
+    # 排序key并拼接行（带进度）
+    sorted_keys = sorted(key_groups.keys(), key=lambda x: (-key_max_freq.get(x, 0), x))
+    sorted_dup_lines = []
+    for idx, key in enumerate(sorted_keys):
+        if idx % 100 == 0:  # 每100个组打印一次进度
+            print_progress("排序-拼接", idx, len(sorted_keys))
+        # 组内行按词频降序排序
+        group_lines = sorted(key_groups[key], key=lambda x: (-freq_map.get(x, 0), x))
+        sorted_dup_lines.extend(group_lines)
+    print_progress("排序-拼接", len(sorted_keys), len(sorted_keys), "✅ 排序完成")
+    print(f"\n🔧 排序后重码行数量：{len(sorted_dup_lines)}")
+    
+    # 4. 筛选非重码行（优化：使用集合快速判断）
+    print("🔧 筛选非重码行...")
+    dup_line_set = set(sorted_dup_lines)
+    non_dup_lines = [line for line in lines_info['all_entry'] if line not in dup_line_set]
+    print(f"   - 非重码行数量：{len(non_dup_lines)}")
+    print("✅ 非重码行筛选完成\n")
+    
+    # 5. 备份原文件
+    print("🔧 备份原文件...")
+    backup_path = f"{file_path}.bak"
+    shutil.copy2(file_path, backup_path)
+    print(f"   - 备份文件：{backup_path}")
+    print("✅ 备份完成\n")
+    
+    # 6. 重新拼接文件内容（带进度）
+    print("🔧 拼接新文件内容...")
+    new_content = []
+    # 重码行
+    new_content.extend(sorted_dup_lines)
+    # 注释/空行（分隔）
+    if new_content and lines_info['comment']:
+        new_content.append("")
+    new_content.extend(lines_info['comment'])
+    # 非重码行（分隔）
+    if new_content and non_dup_lines:
+        new_content.append("")
+    new_content.extend(non_dup_lines)
+    print(f"   - 新文件总行数：{len(new_content)}")
+    print("✅ 内容拼接完成\n")
+    
+    # 7. 写入文件（带进度）
+    print("🔧 写入新文件内容...")
+    with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+        total_write = len(new_content)
+        for idx, line in enumerate(new_content):
+            if idx % 1000 == 0:
+                print_progress("写入文件", idx, total_write)
+            f.write(line + '\n')
+        print_progress("写入文件", total_write, total_write, "✅ 写入完成")
+    
+    print(f"\n🎉 原地修改完成！")
+    print(f"📌 原文件已备份至：{backup_path}")
+    print(f"📌 修改后文件：{file_path}")
+
+def count_word_duplicate(word_code_freq, max_word_freq):
+    """统计一词多码（默认模式）"""
+    print("🔧 开始统计一词多码重码...")
+    duplicate_words = []
+    total_words = len(word_code_freq)
+    for idx, (word, code_freq) in enumerate(word_code_freq.items()):
+        if idx % 1000 == 0:
+            print_progress("统计", idx, total_words)
+        if len(code_freq) >= 2:
+            duplicate_words.append((word, max_word_freq[word], code_freq))
+    
+    print_progress("统计", total_words, total_words, "✅ 统计完成")
+    print("\n")
+    
+    # 排序
+    duplicate_words.sort(key=lambda x: (-x[1], x[0]))
+    return duplicate_words
+
+def count_code_duplicate(code_word_freq, max_code_freq):
+    """统计一码多词（-c参数模式）"""
+    print("🔧 开始统计一码多词重码...")
+    duplicate_codes = []
+    total_codes = len(code_word_freq)
+    for idx, (code, word_freq) in enumerate(code_word_freq.items()):
+        if idx % 1000 == 0:
+            print_progress("统计", idx, total_codes)
+        if len(word_freq) >= 2:
+            duplicate_codes.append((code, max_code_freq[code], word_freq))
+    
+    print_progress("统计", total_codes, total_codes, "✅ 统计完成")
+    print("\n")
+    
+    # 排序
+    duplicate_codes.sort(key=lambda x: (-x[1], x[0]))
+    return duplicate_codes
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='重码词处理脚本：支持一词多码/一码多词的统计与原地修改（带调试进度）',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例：
+  统计一词多码：./count_duplicate_codes.py -f a.txt
+  统计一码多词：./count_duplicate_codes.py -f a.txt -c
+  原地修改（一词多码）：./count_duplicate_codes.py -f a.txt -i
+  原地修改（一码多词）：./count_duplicate_codes.py -f a.txt -i -c
+"""
+    )
+    parser.add_argument('-f', '--file', required=True,
+                        help='必填：码表文件路径（编码格式UTF-8）')
+    parser.add_argument('-i', '--inplace', action='store_true',
+                        help='可选：原地修改文件，将指定类型的重码词条移到开头')
+    parser.add_argument('-c', '--code-dup', action='store_true',
+                        help='可选：统计/处理一码多词重码（默认=一词多码）')
+    
+    args = parser.parse_args()
+    
+    # 原地修改模式（带进度）
+    if args.inplace:
+        inplace_modify_file(args.file, is_code_dup=args.code_dup)
+        return
+    
+    # 统计模式（带进度）
+    print(f"🚀 开始处理文件：{args.file}")
+    print(f"🔧 统计类型：{'一码多词' if args.code_dup else '一词多码'}")
+    print("="*60)
+    
+    # 解析文件
+    word_code_freq, code_word_freq, max_word_freq, max_code_freq = parse_code_table(args.file, keep_original_lines=False)
+    
+    # 统计重码
+    if args.code_dup:
+        duplicate_data = count_code_duplicate(code_word_freq, max_code_freq)
+        total_items = len(code_word_freq)
+        duplicate_count = len(duplicate_data)
+        title = "一码多词"
+        header = f"{'序号':<4} {'编码':<10} {'最高词频':<8} {'词条数':<6} {'词条&词频'}"
+        item_name = "编码"
+    else:
+        duplicate_data = count_word_duplicate(word_code_freq, max_word_freq)
+        total_items = len(word_code_freq)
+        duplicate_count = len(duplicate_data)
+        title = "一词多码"
+        header = f"{'序号':<4} {'词条':<10} {'最高词频':<8} {'编码数':<6} {'编码&词频'}"
+        item_name = "词条"
+    
+    # 输出统计结果
+    print("\n" + "="*80)
+    print(f"📊 {title}重码统计结果（按最高词频降序）")
+    print("="*80)
+    duplicate_rate = (duplicate_count / total_items * 100) if total_items > 0 else 0
+    print(f"总{item_name}数：{total_items}")
+    print(f"{title}重码数：{duplicate_count}")
+    print(f"重码率：{duplicate_rate:.2f}%")
+    print()
+    
+    if duplicate_data:
+        print("📋 重码列表（仅显示前50条）：")
+        print(header)
+        print("-"*80)
+        # 仅显示前50条，避免大文件输出过多
+        display_count = min(len(duplicate_data), 50)
+        for idx, item in enumerate(duplicate_data[:display_count], 1):
+            if args.code_dup:
+                code, max_freq, word_freq = item
+                sorted_items = sorted(word_freq.items(), key=lambda x: (-x[1][0], x[0]))
+                item_str = " | ".join([f"{word}({freq})" for word, (freq, _) in sorted_items[:5]])  # 仅显示前5个词条
+                if len(sorted_items) > 5:
+                    item_str += " | ..."
+                print(f"{idx:<4} {code:<10} {max_freq:<8} {len(word_freq):<6} {item_str}")
+            else:
+                word, max_freq, code_freq = item
+                sorted_items = sorted(code_freq.items(), key=lambda x: (-x[1][0], x[0]))
+                item_str = " | ".join([f"{code}({freq})" for code, (freq, _) in sorted_items[:5]])  # 仅显示前5个编码
+                if len(sorted_items) > 5:
+                    item_str += " | ..."
+                print(f"{idx:<4} {word:<10} {max_freq:<8} {len(code_freq):<6} {item_str}")
+        
+        if len(duplicate_data) > 50:
+            print(f"\n⚠️  重码条目过多，仅显示前50条（共{len(duplicate_data)}条）")
+    else:
+        print(f"✅ 未发现任何{title}重码！")
+    
+    print("\n🎉 统计完成！")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,39 @@
+# ~/.config/starship.toml
+
+
+format = """
+$directory
+$character
+"""
+
+[directory]
+home_symbol = "~"
+truncate_to_repo = false
+truncation_length = 0
+
+# 配置自定义模块以显示 WSL 版本
+# [custom.wsl_version]
+# command = "/home/gaoqiang/linux/scripts/get_wsl_version.sh"
+# when = "test -f /home/gaoqiang/linux/scripts/get_wsl_version.sh"
+# style = "green"
+# format = "WSL$output"
+
+# 配置路径模块
+[character]
+success_symbol = "❯"
+
+[git_branch]
+disabled = true
+
+[git_status]
+disabled = true
+
+[git_commit]
+disabled = true
+
+[git_state]
+disabled = true
+
+[git_metrics]
+disabled = true
+

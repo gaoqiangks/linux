@@ -1,0 +1,233 @@
+#!/bin/bash
+# 文件名: fix_wsl_permissions.sh
+# 用途: 修复从Windows拷贝到WSL的文件权限问题
+# 用法: ./fix_wsl_permissions.sh [目录路径，默认为当前目录]
+
+set -e
+
+# 定义需要保留执行权限的脚本文件扩展名
+SCRIPT_EXTENSIONS=("sh" "bash" "zsh" "py" "pl" "rb" "php" "js" "ts" "mjs" "cjs" "lua" "r" "scala" "groovy" "kt" "kts" "m" "swift" "go" "rs" "exs" "elm" "erl" "hs" "lsp" "rkt" "scm" "tcl" "vbs" "ps1" "bat" "cmd")
+# 定义需要保留执行权限的二进制文件（通常是可执行程序）
+BINARY_EXTENSIONS=("exe" "bin" "app" "run" "out")
+
+# 显示帮助信息
+show_help() {
+    echo "修复从Windows拷贝到WSL的文件权限问题"
+    echo "用法: $0 [选项] [目录路径]"
+    echo ""
+    echo "选项:"
+    echo "  -h, --help      显示此帮助信息"
+    echo "  -d, --dry-run   仅显示将要进行的更改，不实际执行"
+    echo "  -v, --verbose   显示详细信息"
+    echo "  -r, --recursive 递归处理子目录"
+    echo ""
+    echo "如果不指定目录路径，则默认为当前目录。"
+    echo ""
+    echo "此脚本会:"
+    echo "1. 移除非脚本文件的执行权限"
+    echo "2. 保留脚本文件(.sh, .py等)的执行权限"
+    echo "3. 保留二进制文件(.exe, .bin等)的执行权限"
+    echo "4. 将目录权限设置为755"
+    echo "5. 将普通文件权限设置为644（脚本和二进制文件除外）"
+}
+
+# 检查文件是否为脚本或二进制文件（需要保留执行权限）
+should_keep_execute_permission() {
+    local file="$1"
+    
+    # 获取文件扩展名（不带点）
+    local extension="${file##*.}"
+    
+    # 如果扩展名与文件名相同（即没有扩展名），检查是否为无扩展名的脚本
+    if [[ "$extension" == "$file" ]]; then
+        # 检查文件头部是否有shebang（#!/bin/bash等）
+        if head -n1 "$file" 2>/dev/null | grep -q "^#!"; then
+            return 0  # 有shebang，保留执行权限
+        fi
+        return 1  # 无扩展名且无shebang，移除执行权限
+    fi
+    
+    # 检查是否在脚本扩展名列表中
+    for ext in "${SCRIPT_EXTENSIONS[@]}"; do
+        if [[ "$extension" == "$ext" ]]; then
+            return 0  # 是脚本文件，保留执行权限
+        fi
+    done
+    
+    # 检查是否在二进制扩展名列表中
+    for ext in "${BINARY_EXTENSIONS[@]}"; do
+        if [[ "$extension" == "$ext" ]]; then
+            return 0  # 是二进制文件，保留执行权限
+        fi
+    done
+    
+    return 1  # 不是脚本或二进制文件，移除执行权限
+}
+
+# 修复单个文件的权限
+fix_file_permissions() {
+    local file="$1"
+    local dry_run="$2"
+    local verbose="$3"
+    
+    # 检查文件是否存在
+    if [[ ! -e "$file" ]]; then
+        echo "警告: 文件不存在: $file"
+        return 1
+    fi
+    
+    # 跳过符号链接
+    if [[ -L "$file" ]]; then
+        [[ "$verbose" == "true" ]] && echo "跳过符号链接: $file"
+        return 0
+    fi
+    
+    # 如果是目录，设置目录权限为755
+    if [[ -d "$file" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            echo "[模拟] 将目录权限设置为755: $file"
+        else
+            chmod 755 "$file"
+            [[ "$verbose" == "true" ]] && echo "已设置目录权限755: $file"
+        fi
+        return 0
+    fi
+    
+    # 检查是否需要保留执行权限
+    if should_keep_execute_permission "$file"; then
+        # 需要保留执行权限的文件
+        if [[ ! -x "$file" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                echo "[模拟] 添加执行权限: $file"
+            else
+                chmod a+x "$file"
+                [[ "$verbose" == "true" ]] && echo "已添加执行权限: $file"
+            fi
+        else
+            [[ "$verbose" == "true" ]] && echo "保留执行权限: $file"
+        fi
+        # 设置所有者可读写，其他用户可读
+        if [[ "$dry_run" == "true" ]]; then
+            echo "[模拟] 设置脚本权限为755: $file"
+        else
+            chmod 755 "$file"
+        fi
+    else
+        # 不需要执行权限的文件，设置为644
+        if [[ -x "$file" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                echo "[模拟] 移除执行权限: $file"
+            else
+                chmod a-x "$file"
+                [[ "$verbose" == "true" ]] && echo "已移除执行权限: $file"
+            fi
+        fi
+        # 设置权限为644（所有者可读写，其他用户只读）
+        if [[ "$dry_run" == "true" ]]; then
+            echo "[模拟] 设置文件权限为644: $file"
+        else
+            chmod 644 "$file"
+        fi
+    fi
+}
+
+# 主函数
+main() {
+    local target_dir="."
+    local dry_run="false"
+    local verbose="false"
+    local recursive="false"
+    
+    # 解析命令行参数
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -d|--dry-run)
+                dry_run="true"
+                shift
+                ;;
+            -v|--verbose)
+                verbose="true"
+                shift
+                ;;
+            -r|--recursive)
+                recursive="true"
+                shift
+                ;;
+            -*)
+                echo "错误: 未知选项 $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                target_dir="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # 检查目录是否存在
+    if [[ ! -d "$target_dir" ]]; then
+        echo "错误: 目录不存在: $target_dir"
+        exit 1
+    fi
+    
+    # 获取绝对路径
+    target_dir=$(realpath "$target_dir")
+    
+    echo "正在修复目录权限: $target_dir"
+    echo "模式: $([ "$dry_run" == "true" ] && echo "模拟运行" || echo "实际执行")"
+    echo "递归: $([ "$recursive" == "true" ] && echo "是" || echo "否")"
+    echo ""
+    
+    # 设置查找命令
+    local find_cmd="find"
+    if [[ "$recursive" == "true" ]]; then
+        find_cmd="find \"$target_dir\" -type f -o -type d"
+    else
+        find_cmd="find \"$target_dir\" -maxdepth 1 -type f -o -type d"
+    fi
+    
+    # 排除当前目录本身
+    find_cmd="$find_cmd | grep -v \"^$target_dir/\?$\""
+    
+    # 统计信息
+    local total_files=0
+    local processed_files=0
+    local skipped_links=0
+    
+    # 处理文件和目录
+    while IFS= read -r item; do
+        [[ -z "$item" ]] && continue
+        
+        total_files=$((total_files + 1))
+        
+        if [[ "$dry_run" == "true" ]]; then
+            fix_file_permissions "$item" "true" "$verbose"
+        else
+            fix_file_permissions "$item" "false" "$verbose"
+        fi
+        
+        processed_files=$((processed_files + 1))
+        
+    # 使用进程替换避免子shell问题
+    done < <(eval "$find_cmd")
+    
+    echo ""
+    echo "=== 完成 ==="
+    echo "总处理项目: $total_files"
+    echo "已处理项目: $processed_files"
+    [[ "$skipped_links" -gt 0 ]] && echo "跳过的符号链接: $skipped_links"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        echo ""
+        echo "注意: 以上为模拟运行结果，未实际修改权限。"
+        echo "要实际应用更改，请不带 -d 或 --dry-run 参数再次运行。"
+    fi
+}
+
+# 运行主函数
+main "$@"

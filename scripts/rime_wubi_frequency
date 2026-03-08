@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+import argparse
+import os
+
+def load_freq_file(path):
+    freq = {}
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) != 2:
+                continue
+            word, count = parts
+            freq[word] = int(count)
+    return freq
+
+
+def make_output_names(rime_dict_file):
+    base = os.path.basename(rime_dict_file)
+
+    if "." in base:
+        parts = base.split(".")
+        updated = ".".join(parts[:-1]) + ".updated." + parts[-1]
+    else:
+        updated = base + ".updated"
+
+    deleted = base + ".deleted.txt"
+    return updated, deleted
+
+
+def update_rime_dict(rime_dict_file, freq_file):
+    freq = load_freq_file(freq_file)
+
+    output_dict_file, deleted_words_file = make_output_names(rime_dict_file)
+
+    header_lines = []
+    entries = []
+    deleted = []
+
+    in_header = True
+
+    with open(rime_dict_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if in_header:
+                header_lines.append(line)
+                if line.strip() == "...":
+                    in_header = False
+                continue
+
+            if not line.strip():
+                continue
+
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 3:
+                continue
+
+            word, code, weight = parts[0], parts[1], parts[2]
+
+            if word in freq:
+                entries.append((word, code, str(freq[word])))
+            else:
+                if len(word) > 1:
+                    deleted.append(word)
+                else:
+                    entries.append((word, code, weight))
+
+    with open(output_dict_file, "w", encoding="utf-8") as f:
+        for line in header_lines:
+            f.write(line)
+        for word, code, weight in entries:
+            f.write(f"{word}\t{code}\t{weight}\n")
+
+    with open(deleted_words_file, "w", encoding="utf-8") as f:
+        for w in deleted:
+            f.write(w + "\n")
+
+    print("处理完成")
+    print(f"输出词典: {output_dict_file}")
+    print(f"删除词文件: {deleted_words_file}")
+    print(f"保留词条: {len(entries)}")
+    print(f"删除词条: {len(deleted)}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="根据词频文件更新 Rime 词典，并删除无词频的多字词"
+    )
+
+    parser.add_argument(
+        "-d", "--dict",
+        required=True,
+        help="Rime 词典文件（YAML 头 + TSV 正文）"
+    )
+
+    parser.add_argument(
+        "-f", "--freq",
+        required=True,
+        help="词频文件（两列：词 频率）"
+    )
+
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    update_rime_dict(args.dict, args.freq)
+

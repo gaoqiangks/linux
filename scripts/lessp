@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+import sys
+import subprocess
+import fileinput
+import shutil
+import os
+
+# 颜色映射表
+COLORS = {
+    'grey': '\033[90m',
+    'red': '\033[31m',
+    'green': '\033[32m',
+    'yellow': '\033[33m',
+    'blue': '\033[34m',
+    'magenta': '\033[35m',
+    'cyan': '\033[36m',
+    'white': '\033[37m',
+    'reset': '\033[0m'
+}
+
+def get_sep(length_arg, color_name):
+    try:
+        term_width = shutil.get_terminal_size().columns
+    except:
+        term_width = 80
+
+    if length_arg == 'full':
+        length = term_width
+    else:
+        try:
+            length = int(length_arg)
+        except:
+            length = term_width
+
+    color_code = COLORS.get(color_name.lower(), COLORS['grey'])
+    return f"{color_code}{'-' * length}{COLORS['reset']}\n"
+
+def show_help():
+    help_text = """
+lessp - 带有动态分割线的 less 包装器
+
+用法:
+  lessp [lessp 参数] [less 参数] [文件...]
+
+lessp 专属参数:
+  --sep              启用行间分割线
+  --sep-len <数字|full> 修改分割线长度 (默认: full)
+  --sep-color <颜色>   修改颜色 (可选: grey, red, green, yellow, blue, magenta, cyan, white)
+  --sep-help         显示此帮助信息
+    """
+    print(help_text)
+
+def main():
+    raw_args = sys.argv[1:]
+    if '--sep-help' in raw_args:
+        show_help()
+        sys.exit(0)
+
+    use_sep = False
+    sep_len = 'full'
+    sep_color = 'grey'
+    less_args_list = []
+
+    i = 0
+    while i < len(raw_args):
+        arg = raw_args[i]
+        if arg == '--sep':
+            use_sep = True
+        elif arg == '--sep-len' and i + 1 < len(raw_args):
+            sep_len = raw_args[i+1]
+            i += 1
+        elif arg == '--sep-color' and i + 1 < len(raw_args):
+            sep_color = raw_args[i+1]
+            i += 1
+        else:
+            less_args_list.append(arg)
+        i += 1
+
+    less_opts = [a for a in less_args_list if a.startswith('-')]
+    files = [a for a in less_args_list if not a.startswith('-')]
+    if '-R' not in less_opts:
+        less_opts.append('-R')
+
+    try:
+        process = subprocess.Popen(
+            ['less'] + less_opts,
+            stdin=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='replace'
+        )
+
+        separator = get_sep(sep_len, sep_color)
+
+        with fileinput.input(files=files if files else ('-',)) as f:
+            for line in f:
+                try:
+                    process.stdin.write(line)
+                    if use_sep and (line.strip() or line.endswith('\n')):
+                        process.stdin.write(separator)
+                    process.stdin.flush() # 强制刷新，确保及时捕获管道关闭
+                except (BrokenPipeError, IOError):
+                    # 关键点：如果 less 已经退出，我们静默停止写入
+                    break
+        
+        # 正常关闭管道
+        if process.stdin:
+            process.stdin.close()
+        process.wait()
+
+    except (BrokenPipeError, KeyboardInterrupt):
+        # 捕获外部可能的异常，确保静默退出
+        # 也可以使用 devnull 重定向 stderr
+        pass
+    finally:
+        # 彻底解决 "Exception ignored" 的大招：
+        # 强制关闭 stdout/stderr 到 devnull，或者直接 exit
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except:
+            pass
+
+if __name__ == "__main__":
+    # 使用 os._exit(0) 可以绕过 Python 的垃圾回收清理阶段
+    # 从而避免 "Exception ignored in: <_io.TextIOWrapper ...>" 警告
+    try:
+        main()
+    except BrokenPipeError:
+        pass
+    os._exit(0)
