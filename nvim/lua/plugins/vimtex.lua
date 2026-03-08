@@ -22,41 +22,6 @@ local inverse_search_callback = function()
     vim.cmd("normal zz")
     log.debug("Inverse search callback triggered")
 
-    local activate_neovim_frontend = {
-        wt_wsl = function()
-            -- log("activate_neovim.wsl()")
-            utils.focus_windows_terminal()
-        end,
-        iterm2 = function()
-            -- log("activate_neovim.iterm2()")
-            local iterm_id = utils.iterm_id
-            local iterm_tid = iterm_id[1]
-            local iterm_wid = iterm_id[2]
-            if iterm_wid then
-                utils.focus_iterm(iterm_tid, iterm_wid)
-            else
-                vim.notify("iTerm2 window ID not found. Inverse search may not work.", vim.log.levels.WARN)
-            end
-        end,
-        neovide = function()
-            local focus_pid = function(pid)
-                -- log("focus_pid(" .. pid .. ")")
-                local script = string.format(
-                    [[
-                osascript -e 'tell application "System Events" to set frontmost of every process whose unix id is %d to true'
-                ]],
-                    pid
-                )
-                os.execute(script)
-            end
-            -- log("activate_neovim.neovide()")
-            local neovide_pid = utils.neovide_pid
-            if neovide_pid then
-                focus_pid(neovide_pid)
-            end
-        end,
-    }
-
     -- vim.cmd("call b:vimtex.viewer.xdo_focus_vim()")
 
     local highlight_and_fadeout = utils.highlight_and_fadeout
@@ -86,14 +51,8 @@ local inverse_search_callback = function()
         endl = env_inner.close.lnum
     end
     local highlight_time = 2000 -- 默认高亮时间为 2000 毫秒（2 秒), 然后淡出
-
-    -- log("highlight lines: " .. startl .. " to " .. endl)
     highlight_and_fadeout({ startl = startl, endl = endl, ns = ns_id }, highlight_time)
-    local nvim_frontend = utils.get_nvim_frontend()
-    if nvim_frontend then
-        log.debug("Activating Neovim frontend: " .. nvim_frontend)
-        activate_neovim_frontend[nvim_frontend]()
-    end
+    utils.activate_neovim_frontend()
 end
 
 local inverse_search_focus_setup = function(arg)
@@ -302,6 +261,7 @@ return {
     dependencies = {
         "nvim-mini/mini.notify",
     },
+    -- 必须加上， 不然nvim --headless -c 的时候， inverse search功能会提示找不到VimtexInverseSearch这个命令
     lazy = false,
     -- enabled = false,
     -- init函数可以用来在加载插件之前设置一些全局变量

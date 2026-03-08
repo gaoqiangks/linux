@@ -219,7 +219,7 @@ local get_hl = function(name)
     return hl
 end
 
-local get_iterm_wid = function()
+local get_iterm_id = function()
     if (not vim) or (vim.env.TERM_PROGRAM ~= "iTerm.app") or vim.g.neovide then
         -- log("not in nvim or not iTerm2")
         return { nil, nil }
@@ -299,6 +299,22 @@ iterm2.run_until_complete(main)
     end
     ::done::
     return { tab_id, window_id }
+end
+
+-- 返回当前 iTerm2 session 的 UUID（ITERM_SESSION_ID 中 ":" 之后的部分）
+local get_iterm_session_id = function()
+    if (not vim) or (vim.env.TERM_PROGRAM ~= "iTerm.app") or vim.g.neovide then
+        return nil
+    end
+    local sid = vim.env.ITERM_SESSION_ID or ""
+    if sid == "" then
+        return nil
+    end
+    local sep = string.find(sid, ":", 1, true)
+    if sep then
+        return string.sub(sid, sep + 1)
+    end
+    return sid
 end
 
 local environments_list = {
@@ -900,6 +916,21 @@ end
 -- 使用示例
 -- highlight_and_fadeout({ startl = 10, endl = 15, ns_id = 1 }, 2000) -- 高亮2秒后开始淡出
 
+local focus_iterm_by_session_id = function(id)
+    -- 激活iTerm2的session, 但是这个session是在iTerm2进程中的, 这个命令并没有把iTerm2窗口激活到前台
+    vim.fn.system({
+        "it2api",
+        "activate",
+        "session",
+        tostring(id),
+    })
+    -- 把iterm2窗口激活到前台
+    vim.fn.system({
+        "it2api",
+        "activate-app",
+    })
+end
+
 local focus_iterm = function(iterm_tid, iterm_wid)
     if (not iterm_tid) or not iterm_wid then
         vim.notify("iTerm2 tab ID or window ID not found. Cannot focus iTerm2.", vim.log.levels.WARN)
@@ -927,8 +958,8 @@ local focus_iterm = function(iterm_tid, iterm_wid)
 end
 
 -- inverse search的时候激活vim所成的windows terminal窗口
-local focus_windows_terminal = function()
-    log.debug(" focus_windows_terminal called")
+local activate_windows_terminal = function()
+    log.debug(" activate_windows_terminal called")
     if not wt_pid then
         wt_pid = get_wt_pid()
     end
@@ -952,7 +983,7 @@ local focus_windows_terminal = function()
 end
 
 --- 智能检测 Neovide 的 PID（仅 macOS）
-get_neovide_pid = function()
+local get_neovide_pid = function()
     -- 获取当前 Neovim 的 PID
     local pid = vim.fn.getpid()
     while true do
@@ -1103,7 +1134,7 @@ local get_nvim_frontend = function()
     end
 
     -- iTerm2
-    if has_env("ITERM_SESSION_ID") then
+    if (has_env("TERM_PROGRAM") and vim.env["TERM_PROGRAM"] == "iTerm.app") or has_env("ITERM_SESSION_ID") then
         return "iterm2"
     end
 
@@ -1216,11 +1247,50 @@ local get_onedrive_root = function()
     -- Linux（如通过 rclone 同步）或 fallback
     return home_dir() .. "/OneDrive"
 end
+
+local nvim_frontend = get_nvim_frontend()
+
+local activate_neovim_frontend = function()
+    if not nvim_frontend then
+        return
+    end
+    local focus_apis = {
+        wt_wsl = function()
+            log.debug("activate_neovim.wsl()")
+            activate_windows_terminal()
+        end,
+        iterm2 = function()
+            log.debug("activate_neovim.iterm2, session_id=" .. get_iterm_session_id())
+            focus_iterm_by_session_id(get_iterm_session_id())
+        end,
+        neovide = function()
+            local focus_pid = function(pid)
+                -- log("focus_pid(" .. pid .. ")")
+                local script = string.format(
+                    [[
+                    osascript -e 'tell application "System Events" to set frontmost of every process whose unix id is %d to true'
+                    ]],
+                    pid
+                )
+                os.execute(script)
+            end
+            -- log("activate_neovim.neovide()")
+            local neovide_pid = utils.neovide_pid
+            if neovide_pid then
+                focus_pid(neovide_pid)
+            end
+        end,
+    }
+    if focus_apis[nvim_frontend] then
+        focus_apis[nvim_frontend]()
+    end
+end
+
 return {
     get_sessions = get_sessions,
     get_recent_files = get_recent_files,
     search_visual_selection = search_visual_selection,
-    focus_windows_terminal = focus_windows_terminal,
+    -- activate_windows_terminal = activate_windows_terminal,
     highlight_and_fadeout = highlight_and_fadeout,
     paste_yanked_select = paste_yanked_select,
     indent_selected_lines = indent_selected_lines,
@@ -1240,9 +1310,9 @@ return {
     in_macos = in_macos(),
     in_linux = in_linux(),
     get_os = get_os,
-    get_iterm_id = get_iterm_wid,
+    get_iterm_session_id = get_iterm_session_id,
     get_wt_pid = get_wt_pid,
-    focus_iterm = focus_iterm,
+    -- focus_iterm = focus_iterm,
     get_neovide_pid = get_neovide_pid,
     home_dir = home_dir,
     path = path,
@@ -1251,4 +1321,5 @@ return {
     get_nvim_frontend = get_nvim_frontend,
     is_temporary_buffer = is_temporary_buffer,
     get_onedrive_root = get_onedrive_root,
+    activate_neovim_frontend = activate_neovim_frontend,
 }
