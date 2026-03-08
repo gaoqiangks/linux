@@ -86,7 +86,7 @@ vim.opt.mouse = "a"
 --2026.3.5更新. wslg好像还是不需持primary selection, 总是提示错误. 所以就挺动设置一下.
 if in_wsl then
     vim.g.clipboard = {
-        name = "win32yank-wsl",
+        name = "wl-copy-wsl",
         copy = {
             ["+"] = "wl-copy --type text/plain",
             ["*"] = "wl-copy --type text/plain",

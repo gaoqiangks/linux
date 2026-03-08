@@ -1,0 +1,98 @@
+# Rime schema settings
+# encoding: utf-8
+
+schema:
+  schema_id: wubi98_pinyin
+  name: "五笔98·万象拼音"
+  version: "1.5"
+  author: "Gaoqiang"
+  description: |
+    核心：五笔98 (wubi98.dict)
+    辅助：万象拼音 (wanxiang.dict)
+    快捷键：Ctrl + . 切换中英文标点
+  dependencies:
+    - wanxiang
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: ascii_punct
+    reset: 0 # 0为默认中文标点，改为1则默认英文标点
+    states: [ 。，, . , ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator          # 指向下面的 'translator' 块
+    - script_translator@wanxiang # 指向下面的 'wanxiang' 块
+  filters:
+    - reverse_lookup_filter
+    - uniqueness_filter
+
+# --- 拼写处理 ---
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba
+  delimiter: " '"
+  max_code_length: 4            # 五笔最长4码
+  auto_select: true             # 四码唯一自动上屏
+  auto_select_unique_candidate: true
+
+# --- 五笔98 主翻译器 ---
+translator:
+  dictionary: wubi98            # 必须确保有 wubi98.dict.yaml
+  enable_charset_filter: true
+  enable_sentence: false
+  enable_encoder: true
+  encode_commit_history: true
+  max_phrase_length: 4
+  initial_quality: 1000         # 确保五笔词条（如“工”）排在第一位
+
+# --- 万象拼音 副翻译器 ---
+wanxiang:
+  tag: wanxiang
+  dictionary: wanxiang          # 必须确保有 wanxiang.dict.yaml
+  enable_sentence: true
+  initial_quality: 0            # 权重设为最低，仅在五笔无码或长码时显现
+  tips: 〔拼音〕
+  prefix: "`"                   # 手动按 ` 引导符进入拼音模式
+
+# --- 反查逻辑 ---
+reverse_lookup:
+  tags: [ wanxiang ]
+  dictionary: wubi98
+  overwrite_inner_dict_tips: true
+
+# --- 符号与快捷键配置 ---
+punctuator:
+  import_preset: symbols        # 使用 symbols.yaml 定义的符号
+
+key_binder:
+  import_preset: default
+  bindings:
+    # 快捷键：Ctrl + . 切换中英文标点状态
+    - { accept: "Control+period", toggle: ascii_punct, when: always }
+    - { accept: "Alt+period", toggle: ascii_punct, when: always }
+
+recognizer:
+  import_preset: default
+  patterns:
+    wanxiang: "(^`|[a-z]*'?)" # 5码以上自动转为拼音逻辑
+    punct: "^/([a-z]+|[0-9] signature)$" # 支持 symbols 的 / 模式
