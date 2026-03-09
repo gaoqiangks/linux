@@ -1,4 +1,5 @@
 -- 仅用来设置与插件无关的设置
+log.debug("options.lua: 开始加载")
 vim.opt.number = true
 vim.opt.ignorecase = true
 vim.opt.showcmd = false
@@ -84,7 +85,9 @@ vim.opt.mouse = "a"
 --     }
 -- end
 --2026.3.5更新. wslg好像还是不需持primary selection, 总是提示错误. 所以就挺动设置一下.
+log.debug("options.lua: 检测环境 in_wsl =", tostring(in_wsl))
 if in_wsl then
+    log.debug("options.lua: WSL 环境，设置 wl-copy 剪贴板")
     vim.g.clipboard = {
         name = "wl-copy-wsl",
         copy = {
@@ -118,7 +121,9 @@ vim.opt.guicursor = {
 }
 -- _value = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,t:block-blinkon500-blinkoff500-TermCursor",
 
+log.debug("options.lua: neovide =", tostring(vim.g.neovide ~= nil))
 if vim.g.neovide then
+    log.debug("options.lua: 检测到 neovide GUI，设置 neovide 相关选项")
     --如果使用neovide, 禁用所有动画
     vim.g.neovide_position_animation_length = 0
     vim.g.neovide_cursor_animation_length = 0.00

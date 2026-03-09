@@ -40,6 +40,7 @@ return {
     -- 禁用lualine
     -- enabled = false,
     config = function()
+        log.debug("lualine.lua: config 开始")
         require("lualine").setup({
             options = {
                 -- 无论是否显示图标, 都需要安装nerd-fonts

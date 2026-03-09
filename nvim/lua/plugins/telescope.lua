@@ -21,6 +21,7 @@ return {
         },
     },
     config = function()
+        log.debug("telescope.lua: config 开始")
         local actions = require("telescope.actions")
         require("telescope").setup({
             defaults = {
@@ -54,6 +55,7 @@ return {
         require("telescope").load_extension("ui-select")
         require("telescope").load_extension("fzf")
         require("telescope").load_extension("telescope-tabs")
+        log.debug("telescope.lua: 扩展加载完成（ui-select, fzf, telescope-tabs）")
         -- require("telescope").load_extension("projects")
         local builtin = require("telescope.builtin")
         keyset("n", "<leader>ff", builtin.find_files, { desc = "Telescope find files" })

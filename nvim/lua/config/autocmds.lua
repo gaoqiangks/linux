@@ -2,6 +2,7 @@ vim.cmd.source("~/.config/nvim/lua/config/autocmds.vim")
 if vim.g.vscode then
     return
 end
+log.debug("autocmds.lua: 开始加载")
 local fn = vim.fn
 
 local autocmd = vim.api.nvim_create_autocmd
@@ -16,6 +17,7 @@ if in_wsl then
         if current_file ~= "" then
             current_dir = vim.fn.fnamemodify(current_file, ":p:h") -- 提取目录部分
         end
+        log.debug("autocmds.lua: Explorer 命令执行，current_dir =", current_dir)
         local handle = io.popen("wslpath -w " .. current_dir) -- 调用 wslpath 命令
         local dir = handle:read("*a") -- 读取命令输出
         handle:close() -- 关闭句柄
@@ -32,6 +34,7 @@ end
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
     pattern = "*.plist",
     callback = function()
+        log.debug("autocmds.lua: plist 文件，设置 filetype = xml")
         vim.bo.filetype = "xml"
     end,
 })
@@ -44,6 +47,7 @@ local function disable_IME_when_normal()
         else
             vim.g.neovide_input_ime = false
         end
+        log.debug("autocmds.lua: IME 状态变化，event =", args.event, "ime =", tostring(vim.g.neovide_input_ime))
     end
 
     local ime_input = vim.api.nvim_create_augroup("ime_input", { clear = true })
@@ -60,6 +64,7 @@ local function disable_IME_when_normal()
         callback = set_ime,
     })
 end
+log.debug("autocmds.lua: neovide =", tostring(vim.g.neovide ~= nil))
 if vim.g.neovide then
     disable_IME_when_normal()
 end

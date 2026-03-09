@@ -1,4 +1,5 @@
 -- 仅用来设置与插件无关的快捷键
+log.debug("keymaps.lua: 开始加载快捷键")
 
 keyset("i", "<C-b>", "<ESC>^i", { desc = "move beginning of line" })
 keyset("i", "<C-e>", "<End>", { desc = "move end of line" })
@@ -39,6 +40,7 @@ keyset("n", "<A-c><A-c>", "<Esc><cmd>q!<CR>", { desc = "退出" })
 
 -- 设置快捷键
 keyset("n", "<C-a>", function()
+    log.debug("keymaps.lua: <C-a> 触发，复制整个文件")
     local result = utils.copy_entire_file()
     vim.notify(string.format("📋 Copied %d lines (%d chars)", result.lines, result.chars), vim.log.levels.INFO)
 end, { noremap = true, silent = true })
@@ -77,6 +79,7 @@ vim.cmd("map <A-k> :<C-f>")
 
 -- 在 Visual 模式下映射 <A-s> 调用上面的函数
 vim.keymap.set("v", "<A-s>", function()
+    log.debug("keymaps.lua: <A-s> 触发，搜索选中文本")
     -- 退出 Visual 模式再执行函数
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
     utils.search_visual_selection()
@@ -93,6 +96,7 @@ vim.keymap.set("n", "<leader>bc", "<cmd>BufClear<CR>", { desc = "清空当前 bu
 vim.keymap.set("n", "<A-S-d>", "<cmd>BufClear<CR>", { desc = "清空当前 buffer，不覆盖寄存器" })
 
 local vscode_keymap_setup = function()
+    log.debug("keymaps.lua: 设置 VSCode 模式快捷键")
     keyset("x", "==", function()
         vscode.call("editor.action.reindentselectedlines")
     end, { silent = true })
@@ -157,8 +161,10 @@ local vscode_keymap_setup = function()
 end
 
 if vim.g.vscode then
+    log.debug("keymaps.lua: VSCode 模式，应用 vscode 专用快捷键")
     vscode_keymap_setup()
 else
+    log.debug("keymaps.lua: 普通 neovim 模式，映射 j/k 为 gj/gk")
     keyset({ "n", "v" }, "j", "gj", { noremap = true, desc = "向下移动" })
     keyset({ "n", "v" }, "k", "gk", { noremap = true, desc = "向下移动" })
 end

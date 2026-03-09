@@ -1,5 +1,6 @@
 -- 导入工具函数库
 local home_dir = utils.home_dir()
+log.debug("snacks.lua: 开始加载")
 
 -- 从工具库中提取常用函数
 local first_n = utils.first_n -- 返回类型：function -> list
@@ -78,6 +79,7 @@ local get_snack_dashboard_item = function(type, filters)
 
     -- 应用路径过滤器
     local lst_filtered = filter_path(lst, filters) -- 返回list<{path: string, session_file?: string}>
+    log.debug("snacks.lua: dashboard 项类型 =", type, "原始数量 =", #lst, "过滤后数量 =", #lst_filtered)
 
     -- 返回闭包函数，延迟执行项转换
     -- 返回值: function() -> list<table> - 其中每个table是snacks_item的返回值
@@ -110,6 +112,7 @@ for _, v in ipairs(argv) do
         dashboard_enabled = false -- 如果命令行参数包含"-c"，则禁用dashboard功能
     end
 end
+log.debug("snacks.lua: dashboard_enabled =", tostring(dashboard_enabled))
 
 vim.api.nvim_create_autocmd("User", {
     pattern = "SnacksDashboardOpened", -- 监听所有 User 自定义事件
@@ -213,6 +216,7 @@ return {
     },
     -- 插件初始化函数
     init = function() -- 返回nil
+        log.debug("snacks.lua: init 执行，禁用动画")
         vim.g.snacks_animate = false -- 禁用动画效果
         -- 为特定文件类型设置自动命令
         -- vim.api.nvim_create_autocmd({ "FileType", "BufAdd", "BufEnter", "WinEnter" }, {

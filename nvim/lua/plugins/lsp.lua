@@ -14,10 +14,12 @@ return {
             "hrsh7th/cmp-nvim-lsp",
         },
         config = function()
+            log.debug("lsp.lua: config 开始，配置 LSP")
             -- vim.lsp.enable_progress(false)
 
             -- 获取补全能力
             local capabilities = require("cmp_nvim_lsp").default_capabilities()
+            log.debug("lsp.lua: 获取 LSP 能力完成")
 
             -- vim.lsp.handlers["$/progress"] = function() end
             -- vim.lsp.handlers["$/progress"] = function() end
@@ -63,6 +65,7 @@ return {
             -- --- 激活服务器 ---
             -- 核心：初始化 Mason-LSPConfig
             -- v2.0 会自动 enable 已安装的服务器，无需再手动写循环 setup
+            log.debug("lsp.lua: 初始化 mason-lspconfig")
             require("mason-lspconfig").setup({
                 ensure_installed = { "lua_ls", "basedpyright", "vtsls", "rust_analyzer", "clangd" },
                 -- 关键：开启自动激活
@@ -75,6 +78,7 @@ return {
             vim.api.nvim_create_autocmd("LspAttach", {
                 callback = function(ev)
                     local opts = { buffer = ev.buf }
+                    log.debug("lsp.lua: LspAttach 触发，bufnr =", ev.buf, "file =", vim.api.nvim_buf_get_name(ev.buf))
                     vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
                     vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
                     vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)

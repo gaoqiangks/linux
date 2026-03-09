@@ -255,11 +255,13 @@ return {
     -- enabled = false,
     dependencies = { "nvim-tree/nvim-web-devicons" },
     init = function()
+        log.debug("nvim-tree.lua: init 执行，禁用 netrw")
         -- disable netrw at the very start of your init.lua
         vim.g.loaded_netrw = 1
         vim.g.loaded_netrwPlugin = 1
     end,
     config = function()
+        log.debug("nvim-tree.lua: config 开始")
         -- optionally enable 24-bit colour
         vim.opt.termguicolors = true
         -- vim.keymap.set("n", "<leader>t", ":NvimTreeToggle<CR>", { desc = "Toggle NvimTree" })

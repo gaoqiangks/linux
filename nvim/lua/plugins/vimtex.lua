@@ -165,8 +165,14 @@ local macos_set_viewers = function(viewer)
     end
     local viewers_setup = {
         sioyek = function()
+            -- vim.g.vimtex_view_general_viewer = "/Applications/sioyek.app/Contents/MacOS/sioyek"
+            -- vim.g.vimtex_view_general_viewer = "sioyek"
+            -- vim.g.vimtex_view_general_options = [[--inverse-search 'nvim --server ]]
+            --     .. vim.v.servername
+            --     .. [[ --remote-send "<Esc>:call vimtex#view#inverse_search(100,\"plateau.tex\")<CR>"']]
             vim.g.vimtex_view_method = "sioyek"
             vim.g.vimtex_view_sioyek_exe = "/Applications/sioyek.app/Contents/MacOS/sioyek"
+            -- log.debug("vimtex_view_general_options = " .. vim.g.vimtex_view_general_options)
         end,
         skim = function()
             vim.g.vimtex_view_method = "skim"

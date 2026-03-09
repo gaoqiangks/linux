@@ -4,6 +4,7 @@ return {
     -- event = "BufReadPre", -- Ensure the plugin loads only when a buffer has been loaded
     lazy = false,
     config = function()
+        log.debug("persisted.lua: config 开始")
         local uv = vim.loop
         require("persisted").setup({
             -- should_save = function()
@@ -43,7 +44,10 @@ return {
         vim.api.nvim_create_autocmd({ "VimEnter" }, {
             group = persisted_autostart,
             pattern = "*",
-            command = "Persisted start"
+            callback = function()
+                log.debug("persisted.lua: VimEnter 触发，启动 session 管理")
+                vim.cmd("Persisted start")
+            end,
         })
         require("telescope").load_extension("persisted")
     end

@@ -8,6 +8,7 @@ return {
     -- dependencies = { "rafamadriz/friendly-snippets" },
     build = "make install_jsregexp",
     config = function()
+        log.debug("luasnip.lua: config 开始")
         require("luasnip").setup({
             loaders_store_source = true
         })

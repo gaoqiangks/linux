@@ -133,6 +133,7 @@ return {
         },
     },
     config = function()
+        log.debug("nvim-cmp.lua: config 开始")
         -- Set up nvim-cmp.
         local cmp = require("cmp")
         -- 这个变量用来记录是否因为接受了copilot建议而临时禁用cmp的时间, 默认200ms
