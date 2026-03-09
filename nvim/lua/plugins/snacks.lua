@@ -193,6 +193,7 @@ return {
                     check_exist = true, -- 检查文件是否存在
                     patterns_included = {
                         "^" .. home_dir, -- 包含用户主目录下的会话
+                        "^/mnt/c/Users/", -- 包含WSL环境下的Windows用户目录会话
                     },
                     patterns_excluded = {
                         "^" .. home_dir .. "$", -- 包含用户主目录下的会话

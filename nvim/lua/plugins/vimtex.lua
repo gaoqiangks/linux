@@ -80,19 +80,41 @@ local toggle_quickfix_window = function()
     end
 end
 
+-- 是否显示编译通知的开关
+local notification_enabled = true
+
+-- 追踪当前正在显示的通知和 timer，防止连按时叠加
+local current_notif = nil
+local current_timer = nil
+
+local function cleanup_current_notification()
+    if current_timer then
+        pcall(function() current_timer:close() end)
+        current_timer = nil
+    end
+    if current_notif then
+        pcall(function() notify.remove(current_notif) end)
+        current_notif = nil
+    end
+end
+
 --编译的时候显示一个转圈的通知
 local function compiling_notification()
+    -- 先清理上一次还没结束的通知（连按 Alt-b 时的情况）
+    cleanup_current_notification()
+
     local message = "Compiling..."
-    local duration = 1000000000
     -- 定义转圈的图案
     local spinner_frames = { "⠋", "⠙", "⠸", "⠴", "⠦", "⠧", "⠇", "⠋" }
     local frame_count = #spinner_frames
 
     -- 显示初始通知
     local notif = notify.add(message .. " " .. spinner_frames[1])
+    current_notif = notif
 
     local i = 1
     local timer = vim.loop.new_timer()
+    current_timer = timer
 
     vim.api.nvim_create_autocmd("User", {
         pattern = { "VimtexEventCompileSuccess", "VimtexEventCompileFailed" },
@@ -100,23 +122,27 @@ local function compiling_notification()
         --每次执行完后必须删除这里的autocmd
         once = true,
         callback = function(ev)
-            -- log("ev = " .. vim.inspect(ev))
-            -- log("timer = " .. vim.inspect(timer))
-            -- log("in callback notif = " .. vim.inspect(notif))
+            -- 不是vimtex的bug, 不知道为什么有时候会执行两次
             pcall(function()
-                duration = 0
+                -- 如果这个 notif 已被更新的编译轮次替换，则不再操作
+                if notif ~= current_notif then
+                    return
+                end
                 if ev.match == "VimtexEventCompileSuccess" then
                     message = "Compile Success"
                 else
                     message = "Compile Failed"
                 end
-                -- 好像是vimtex的bug, VimtexEventCompileFailed会触发两次, 这样会导致notif已经被删除了, 但是这里还在更新
-                -- 不是vimtex的bug, 不知道为什么有时候会执行两次
                 notify.update(notif, { msg = message })
-                -- notify.update(notif, { msg = message })
                 timer:close()
+                if current_timer == timer then
+                    current_timer = nil
+                end
                 vim.defer_fn(function()
                     notify.remove(notif)
+                    if current_notif == notif then
+                        current_notif = nil
+                    end
                 end, 3000)
             end)
         end,
@@ -128,24 +154,40 @@ local function compiling_notification()
             0,
             100,
             vim.schedule_wrap(function()
-                -- 更新显示内容
+                -- timer:close() 只能阻止新回调入队，已入队的回调仍会执行。
+                -- 用 notif 引用对比确保 notif 已被替换或移除时不再更新。
+                if notif ~= current_notif then
+                    return
+                end
                 i = (i % frame_count) + 1
                 local new_message = message .. " " .. spinner_frames[i]
                 notify.update(notif, { msg = new_message })
-
-                -- 停止计时器
-                duration = duration - 100
             end)
         )
     end)
 end
 
+-- 切换编译通知开关
+local toggle_notification = function()
+    notification_enabled = not notification_enabled
+    if notification_enabled then
+        notify.add("Compile notification: ON")
+    else
+        cleanup_current_notification()
+        notify.add("Compile notification: OFF")
+    end
+end
+
 -- 设置编译的时候的通知
-local notification = function()
+local notification_setup = function()
     vim.api.nvim_create_autocmd("User", {
         pattern = { "VimtexEventCompiling" },
         group = vim.api.nvim_create_augroup("group_notifications", { clear = true }),
-        callback = compiling_notification,
+        callback = function()
+            if notification_enabled then
+                compiling_notification()
+            end
+        end,
     })
 end
 
@@ -345,6 +387,7 @@ return {
         keyset("n", "<A-v>", "<plug>(vimtex-view)", { silent = true, remap = false })
         keyset("n", "<A-c>", "<plug>(vimtex-clean-full)", { silent = true, remap = false })
         keyset("n", "<A-b>", "<plug>(vimtex-compile)", { silent = true, remap = false })
+        keyset("n", "<A-n>", toggle_notification, { silent = true, remap = false, desc = "Toggle compile notification" })
         if vim.g.vscode then
             return
         end
@@ -353,7 +396,7 @@ return {
         if in_wsl then
             synctex_path_to_win_setup()
         end
-        notification()
+        notification_setup()
         right_click_menu_setup()
     end,
 }
