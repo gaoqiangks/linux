@@ -89,11 +89,15 @@ local current_timer = nil
 
 local function cleanup_current_notification()
     if current_timer then
-        pcall(function() current_timer:close() end)
+        pcall(function()
+            current_timer:close()
+        end)
         current_timer = nil
     end
     if current_notif then
-        pcall(function() notify.remove(current_notif) end)
+        pcall(function()
+            notify.remove(current_notif)
+        end)
         current_notif = nil
     end
 end
@@ -375,6 +379,9 @@ return {
                     .. "/WorkSpace/settings/zhmakeindex/zhmakeindex.ist\"'",
             },
         }
+        vim.g.vimtex_complete_ref = {
+            custom_patterns = { "\\\\sref\\*\\{-}{[^}]*$" },
+        }
         wsl_set_viewers()
         macos_set_viewers("sioyek")
     end,
@@ -387,7 +394,12 @@ return {
         keyset("n", "<A-v>", "<plug>(vimtex-view)", { silent = true, remap = false })
         keyset("n", "<A-c>", "<plug>(vimtex-clean-full)", { silent = true, remap = false })
         keyset("n", "<A-b>", "<plug>(vimtex-compile)", { silent = true, remap = false })
-        keyset("n", "<A-n>", toggle_notification, { silent = true, remap = false, desc = "Toggle compile notification" })
+        keyset(
+            "n",
+            "<A-n>",
+            toggle_notification,
+            { silent = true, remap = false, desc = "Toggle compile notification" }
+        )
         if vim.g.vscode then
             return
         end

@@ -1,5 +1,6 @@
 return {
-    "olimorris/persisted.nvim",
+    -- "olimorris/persisted.nvim",
+    url = "git@github.com:gaoqiangks/persisted.nvim",
     -- enabled = false,
     -- event = "BufReadPre", -- Ensure the plugin loads only when a buffer has been loaded
     lazy = false,
@@ -34,7 +35,9 @@ return {
             --
             --     return false
             -- end,
-            should_save = function() return true end,
+            should_save = function()
+                return true
+            end,
             autostart = true,
             autosave = true,
             -- autoload = true,
@@ -50,5 +53,5 @@ return {
             end,
         })
         require("telescope").load_extension("persisted")
-    end
+    end,
 }
