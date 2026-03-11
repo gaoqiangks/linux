@@ -1177,6 +1177,12 @@ local is_temporary_buffer = function()
     local filetype = vim.bo[bufnr].filetype
     local bufname = vim.api.nvim_buf_get_name(bufnr)
 
+    -- 检查是否为 crontab -e 打开的文件（不视为临时 buffer）
+    -- crontab -e 会创建类似 /tmp/crontab.XXXXXX 的文件
+    if bufname:match("^/tmp/crontab%.") then
+        return false
+    end
+
     -- 2. 检查特殊的 buftype
     -- 'nofile': 内存 buffer，不对应磁盘文件 (常见于插件面板)
     -- 'prompt': 输入框 (如 Telescope)
