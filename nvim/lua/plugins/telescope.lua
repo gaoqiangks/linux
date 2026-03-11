@@ -58,11 +58,31 @@ return {
         log.debug("telescope.lua: 扩展加载完成（ui-select, fzf, telescope-tabs）")
         -- require("telescope").load_extension("projects")
         local builtin = require("telescope.builtin")
+        -- Custom function to display oldfiles with shortened paths
+        local oldfiles_shorten = function()
+            builtin.oldfiles({
+                path_display = function(opts, path)
+                    -- Split the path into components
+                    local parts = {}
+                    for part in path:gmatch("[^/]+") do
+                        table.insert(parts, part)
+                    end
+                    -- If the path is short, return as is
+                    if #parts <= 3 then
+                        return path
+                    end
+                    -- Otherwise, show the last three parts
+                    local shortened = table.concat({"...", parts[#parts-2], parts[#parts-1], parts[#parts]}, "/")
+                    return shortened
+                end,
+            })
+        end
+
         keyset("n", "<leader>ff", builtin.find_files, { desc = "Telescope find files" })
         keyset("n", "<leader>fg", builtin.live_grep, { desc = "Telescope live grep" })
         keyset("n", "<leader>fb", builtin.buffers, { desc = "Telescope buffers" })
         keyset("n", "<leader>fh", builtin.help_tags, { desc = "Telescope help tags" })
-        keyset("n", "<leader>fo", builtin.oldfiles, { desc = "Telescope old files" })
+        keyset("n", "<leader>fo", oldfiles_shorten, { desc = "Telescope old files with shortened paths" })
         -- persisted.nvim
         keyset("n", "<A-s>", "<cmd>Telescope persisted<cr>", { silent = true, remap = false, desc = "查找会话" })
         keyset(
