@@ -109,6 +109,10 @@ function shortcuts_setup
     bind --mode insert \es "nvim -c \"Telescope persisted\""
     bind insert \es "nvim -c \"Telescope persisted\""
 
+    #alt-s  启动nvim并搜索历史session
+    bind --mode insert \eo "nvim -c \"Telescope oldfiles\""
+    bind insert \eo "nvim -c \"Telescope oldfiles\""
+
     # --- 绑定 Alt-p (上一条历史) ---
     bind --mode insert \ep history-search-backward
     bind --mode default \ep history-search-backward
