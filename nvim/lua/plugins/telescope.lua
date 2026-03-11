@@ -62,6 +62,11 @@ return {
         local oldfiles_shorten = function()
             builtin.oldfiles({
                 path_display = function(opts, path)
+                    -- Replace home directory with ~
+                    local home = os.getenv("HOME")
+                    if home and path:sub(1, #home) == home then
+                        path = "~" .. path:sub(#home + 1)
+                    end
                     -- Split the path into components
                     local parts = {}
                     for part in path:gmatch("[^/]+") do
