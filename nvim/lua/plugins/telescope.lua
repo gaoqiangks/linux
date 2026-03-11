@@ -62,6 +62,7 @@ return {
         keyset("n", "<leader>fg", builtin.live_grep, { desc = "Telescope live grep" })
         keyset("n", "<leader>fb", builtin.buffers, { desc = "Telescope buffers" })
         keyset("n", "<leader>fh", builtin.help_tags, { desc = "Telescope help tags" })
+        keyset("n", "<leader>fo", builtin.oldfiles, { desc = "Telescope old files" })
         -- persisted.nvim
         keyset("n", "<A-s>", "<cmd>Telescope persisted<cr>", { silent = true, remap = false, desc = "查找会话" })
         keyset(
