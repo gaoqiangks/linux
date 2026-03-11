@@ -46,7 +46,7 @@ function alias_setup
     alias less="less -n -R"
     # .iterm2_shell_integration 里用到了grep, 所以要把grep的alias放在iterm2_shell_integration的下面, 否则会导致报错
     # alias grep="rg --color=always --colors='match:style:underline' --ignore-case"
-    alias grep="rg --ignore-case"
+    # alias grep="rg --ignore-case"
     alias ss="$HOME/linux/scripts/search"
     alias rg="rg --ignore-case"
     alias lipsum=lorem
