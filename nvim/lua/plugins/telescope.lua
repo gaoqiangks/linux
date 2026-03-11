@@ -25,6 +25,8 @@ return {
         local actions = require("telescope.actions")
         require("telescope").setup({
             defaults = {
+                -- 关闭预览窗口以提升性能
+                preview = false,
                 mappings = {
                     i = {
                         ["<esc>"] = actions.close,
