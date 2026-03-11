@@ -14,18 +14,19 @@ return {
     -- dependencies = { 'gaoqiangks/plenary.nvim'},
     -- enabled = false,
     opts = {
+        oldfiles_shorten_enabled = true,
         pickers = {
             colorscheme = {
                 enable_preview = true,
             },
         },
     },
-    config = function()
+    config = function(opts)
         log.debug("telescope.lua: config 开始")
         local actions = require("telescope.actions")
         
         -- Variable to control whether to shorten paths in oldfiles
-        local oldfiles_shorten_enabled = true
+        local oldfiles_shorten_enabled = opts.oldfiles_shorten_enabled
         
         -- Function to toggle the shorten setting
         local toggle_oldfiles_shorten = function()
