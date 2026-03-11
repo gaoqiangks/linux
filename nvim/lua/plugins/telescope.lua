@@ -84,36 +84,8 @@ return {
                             table.insert(processed_parts, part)
                         else
                             -- Directory part - take first character
-                            -- Handle UTF-8 characters properly
-                            local first_char = part
-                            -- Use utf8 library if available
-                            local ok, utf8 = pcall(require, "utf8")
-                            if ok then
-                                -- We have utf8 library (from Lua 5.3+ or nvim has it)
-                                first_char = utf8.char(utf8.codes(part)())
-                            else
-                                -- Fallback: take first byte (may not work for multi-byte characters)
-                                first_char = part:sub(1, 1)
-                            end
-                            -- Actually, in Neovim we can use vim.str_utf_pos
-                            -- Let's use a more reliable method
-                            local function get_first_utf8_char(str)
-                                if #str == 0 then return "" end
-                                -- Get the first UTF-8 character
-                                local b = str:byte(1)
-                                if b <= 127 then
-                                    return str:sub(1, 1)
-                                elseif b >= 192 and b <= 223 then
-                                    return str:sub(1, 2)
-                                elseif b >= 224 and b <= 239 then
-                                    return str:sub(1, 3)
-                                elseif b >= 240 and b <= 247 then
-                                    return str:sub(1, 4)
-                                else
-                                    return str:sub(1, 1)
-                                end
-                            end
-                            first_char = get_first_utf8_char(part)
+                            -- Use vim.fn.strcharpart to get first UTF-8 character
+                            local first_char = vim.fn.strcharpart(part, 0, 1)
                             table.insert(processed_parts, first_char)
                         end
                     end
