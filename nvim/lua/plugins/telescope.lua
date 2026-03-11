@@ -45,6 +45,40 @@ return {
                 colorscheme = {
                     enable_preview = true,
                 },
+                oldfiles = {
+                    path_display = function(_, path)
+                        -- Replace home directory with ~
+                        local home = os.getenv("HOME")
+                        if home and path:sub(1, #home) == home then
+                            path = "~" .. path:sub(#home + 1)
+                        end
+                        -- Split the path into components
+                        local parts = {}
+                        for part in path:gmatch("[^/]+") do
+                            table.insert(parts, part)
+                        end
+                        -- If no parts, return original path
+                        if #parts == 0 then
+                            return path
+                        end
+                        -- Process each part
+                        local processed_parts = {}
+                        for i, part in ipairs(parts) do
+                            if i == #parts then
+                                -- Last part (filename) - keep it完整
+                                table.insert(processed_parts, part)
+                            else
+                                -- Directory part - take first character
+                                -- Use vim.fn.strcharpart to get first UTF-8 character
+                                local first_char = vim.fn.strcharpart(part, 0, 1)
+                                table.insert(processed_parts, first_char)
+                            end
+                        end
+                        -- Reconstruct the path
+                        local shortened = table.concat(processed_parts, "/")
+                        return shortened
+                    end,
+                },
             },
             extensions = {
                 ["ui-select"] = {
@@ -59,41 +93,9 @@ return {
         -- require("telescope").load_extension("projects")
         local builtin = require("telescope.builtin")
         -- Custom function to display oldfiles with shortened paths
+        -- Now uses the default configuration set in pickers.oldfiles
         local oldfiles_shorten = function()
-            builtin.oldfiles({
-                path_display = function(opts, path)
-                    -- Replace home directory with ~
-                    local home = os.getenv("HOME")
-                    if home and path:sub(1, #home) == home then
-                        path = "~" .. path:sub(#home + 1)
-                    end
-                    -- Split the path into components
-                    local parts = {}
-                    for part in path:gmatch("[^/]+") do
-                        table.insert(parts, part)
-                    end
-                    -- If no parts, return original path
-                    if #parts == 0 then
-                        return path
-                    end
-                    -- Process each part
-                    local processed_parts = {}
-                    for i, part in ipairs(parts) do
-                        if i == #parts then
-                            -- Last part (filename) - keep it完整
-                            table.insert(processed_parts, part)
-                        else
-                            -- Directory part - take first character
-                            -- Use vim.fn.strcharpart to get first UTF-8 character
-                            local first_char = vim.fn.strcharpart(part, 0, 1)
-                            table.insert(processed_parts, first_char)
-                        end
-                    end
-                    -- Reconstruct the path
-                    local shortened = table.concat(processed_parts, "/")
-                    return shortened
-                end,
-            })
+            builtin.oldfiles()
         end
 
         keyset("n", "<leader>ff", builtin.find_files, { desc = "Telescope find files" })
