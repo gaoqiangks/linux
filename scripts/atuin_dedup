@@ -1,0 +1,2 @@
+#!/bin/bash
+/home/linuxbrew/.linuxbrew/bin/fish -c 'atuin history dedup --dupkeep 1 --before (date "+%Y-%m-%d %H:%M")'
